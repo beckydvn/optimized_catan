@@ -160,6 +160,7 @@ def hardcode_board_connections(tiles: list[list[Tile]]):
                 if idx:
                     tile.connected_to.add(tiles[idx[0]][idx[1]])
                     tile.edges[o].connected_to.add(tiles[idx[0]][idx[1]].edges[idx[2]])
+                    tile.vertices[o].connected_to.add(tiles[idx[0]][idx[1]].vertices[idx[2]])
 
 def game_setup():
     number_pieces = [
