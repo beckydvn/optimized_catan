@@ -2,7 +2,7 @@ from __future__ import annotations
 from enum import Enum
 import random
 
-BOARD_LAYOUT = {1: 3, 2: 4, 3: 5, 4: 4, 5: 3}
+BOARD_LAYOUT = {0: 3, 1: 4, 2: 5, 3: 4, 4: 3}
 # MIN_SPACE = " "
 # MARGIN = 50
 
@@ -45,24 +45,27 @@ class TileType(Enum):
         return self.name
 
 class ORIENTATION(Enum):
-    N = 1
+    W = 1
     NW = 2
     SW = 3
-    S = 4
+    E = 4
     SE = 5
     NE = 6
 
+    def __str__(self):
+        return self.name
+
 class Port:
     def __init__(self, pos: tuple, type: TileType):
-        self.x = pos[0]
-        self.y = pos[1]
+        self.row = pos[0]
+        self.col = pos[1]
         self.orientation = ORIENTATION
         self.type = type
 
 class Property:
     def __init__(self, pos: tuple, owner: Player):
-        self.x = pos[0]
-        self.y = pos[1]
+        self.row = pos[0]
+        self.col = pos[1]
         self.owner = owner
 
 class Road(Property):
@@ -74,30 +77,90 @@ class City(Property):
         super().__init__(pos, owner)
 
 class Vertex:
-    def __init__(self, pos: tuple, connected_to: list[Vertex], ports_connected_to: list[Port]):
-        self.x = pos[0]
-        self.y = pos[1]
-        self.connected_to = connected_to
-        self.ports_connected_to = ports_connected_to
+    def __init__(self, pos: tuple, orientation: ORIENTATION):
+        self.row = pos[0]
+        self.col = pos[1]
+        self.orientation = orientation
+        self.connected_to = set()
+        self.ports_connected_to = set()
         self.property_placed: Property | None = None
 
+    def __str__(self):
+        string = f"Vertex at ({self.row}, {self.col}, {self.orientation})"
+        if self.property_placed:
+            string += f" with property {self.property_placed}"
+        return string
+
 class Edge:
-    def __init__(self, pos: tuple, connected_to: list[Edge]):
-        self.x = pos[0]
-        self.y = pos[1]
-        self.connected_to = connected_to
+    def __init__(self, pos: tuple, orientation: ORIENTATION):
+        self.row = pos[0]
+        self.col = pos[1]
+        self.orientation = orientation
+        self.connected_to = set()
         self.road_placed: Road | None = None
 
+    def __str__(self):
+        string = f"Edge at ({self.row}, {self.col}, {self.orientation})"
+        if self.road_placed:
+            string += f" with road {self.road_placed}"
+        return string
+
 class Tile:
-    def __init__(self, pos: tuple, type: TileType, dice: int, vertices: list[Vertex], edges: list[Edge], connected_to: list[Tile]):
-        self.x = pos[0]
-        self.y = pos[1]
+    def __init__(self, pos: tuple, type: TileType, dice: int, vertices: list[Vertex], edges: list[Edge]):
+        self.row = pos[0]
+        self.col = pos[1]
         self.type = type
         self.dice = dice
         self.vertices = vertices
         self.edges = edges
-        self.connected_to = connected_to
+        self.connected_to = set()
+
+    def __str__(self):
+        return f"Tile at ({self.row}, {self.col}): {self.type} with dice {self.dice}"
     
+def exists_in_board(row: int, col: int):
+    if row in BOARD_LAYOUT and col < BOARD_LAYOUT[row] and col >= 0:
+        return True
+    return False
+
+def get_orientation_idx(row: int, col: int, orientation: ORIENTATION):
+    new_row, new_col, new_orientation = None, None, None
+    if orientation == ORIENTATION.W:
+        if col > 0:
+            new_row, new_col, new_orientation = (row, col - 1, ORIENTATION.E)
+    elif orientation == ORIENTATION.E:
+        if col < BOARD_LAYOUT[row] - 1:
+            new_row, new_col, new_orientation = (row, col + 1, ORIENTATION.W)
+    elif orientation == ORIENTATION.NW:
+        if row > 0:
+            new_row, new_col, new_orientation = (row - 1, col, ORIENTATION.SE) if BOARD_LAYOUT[row - 1] > BOARD_LAYOUT[row] else (row - 1, col - 1, ORIENTATION.SE)
+    elif orientation == ORIENTATION.NE:
+        if row > 0:
+            new_row, new_col, new_orientation = (row - 1, col + 1, ORIENTATION.SW) if BOARD_LAYOUT[row - 1] > BOARD_LAYOUT[row] else (row - 1, col, ORIENTATION.SW)
+    elif orientation == ORIENTATION.SW:
+        if row < len(BOARD_LAYOUT) - 1:
+            new_row, new_col, new_orientation = (row + 1, col, ORIENTATION.NE) if BOARD_LAYOUT[row + 1] > BOARD_LAYOUT[row] else (row + 1, col - 1, ORIENTATION.NE)
+    elif orientation == ORIENTATION.SE:
+        if row < len(BOARD_LAYOUT) - 1:
+            new_row, new_col, new_orientation = (row + 1, col + 1, ORIENTATION.NW) if BOARD_LAYOUT[row + 1] > BOARD_LAYOUT[row] else (row + 1, col , ORIENTATION.NW)
+
+    if new_row is not None:
+        if exists_in_board(new_row, new_col):
+            return (new_row, new_col, new_orientation)
+        return None
+
+def hardcode_board_connections(tiles: list[list[Tile]]):
+    last_row_idx = len(BOARD_LAYOUT) - 1
+    for row_idx in BOARD_LAYOUT:
+        for col_idx in range(BOARD_LAYOUT[row_idx]):
+            tile = tiles[row_idx][col_idx]
+
+            for o in ORIENTATION:
+                idx = get_orientation_idx(row_idx, col_idx, o)
+                if idx:
+                    tile.connected_to.add(tiles[idx[0]][idx[1]])
+                    tile.edges[o].connected_to.add(tiles[idx[0]][idx[1]].edges[idx[2]])
+
 def game_setup():
     number_pieces = [
         2, 
@@ -135,17 +198,24 @@ def game_setup():
             vertices = {}
             edges = {}
             for o in ORIENTATION:
-                vertices[o] = Vertex(pos, set(), set())
-                edges[o] = Edge(pos, set())
+                vertices[o] = Vertex(pos, o)
+                edges[o] = Edge(pos, o)
 
-            row.append(Tile(pos, type, dice, vertices, edges, set()))
-
-
-            print(f"Tile at ({row_idx}, {col_idx}): {type} with dice {dice}")
+            row.append(Tile(pos, type, dice, vertices, edges))
         all_tiles.append(row)
-    
-    return all_tiles
-
+    hardcode_board_connections(all_tiles)
+    return (all_tiles)
 
 if __name__ == "__main__":
     all_tiles = game_setup()
+    for row in all_tiles:
+        for tile in row:
+            print()
+            print(tile)
+            for e in tile.edges:
+                if tile.edges[e].connected_to:
+                   
+                    for ce in tile.edges[e].connected_to:
+                         print(f"{tile.edges[e]} is connected to {ce}")
+            print("-----------------------------")
+    print("Board setup complete!")
