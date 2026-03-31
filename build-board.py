@@ -1,27 +1,66 @@
 from __future__ import annotations
 from enum import Enum
 import random
+import tkinter as tk
 
 BOARD_LAYOUT = {0: 3, 1: 4, 2: 5, 3: 4, 4: 3}
-# MIN_SPACE = " "
-# MARGIN = 50
+HEX_HEIGHT = 50
+HEX_SIZE = 100
+MARGIN_X = 450
+MARGIN_Y = 250
+CIRCLE_RADIUS = HEX_SIZE // 2
 
-# def print_board(all_tiles: list[list[Tile]]):
-#     # iterate through the board configuration
-#     for row in BOARD_LAYOUT:
-#         num_cols = BOARD_LAYOUT[row]
-#         if row == 1:
-#             top_str = f"/{MIN_SPACE}\\{MIN_SPACE*2}" * num_cols
-#             # center the top string
-#             top_str = top_str.center(MARGIN)
-#             print(top_str)
-#         mid_str = f"|{MIN_SPACE*3}" * (num_cols + 1)
-#         mid_str = mid_str.center(MARGIN)
-#         print(mid_str)
-#         bot_str = f"\\{MIN_SPACE}/{MIN_SPACE*2}" * num_cols
-#         bot_str = bot_str.center(MARGIN)
-#         print(bot_str)
-        
+def add_margin(point, row_idx):
+    point = (point[0] + MARGIN_X, point[1] + MARGIN_Y)
+    if row_idx  in [1, 3]:
+        point = (point[0] - HEX_SIZE // 2, point[1])
+    elif row_idx == 2:
+        point = (point[0] - HEX_SIZE, point[1])
+    return point
+
+def board_GUI(tiles: list[list[Tile]]):
+    for row_idx in BOARD_LAYOUT:
+        for col_idx in range(BOARD_LAYOUT[row_idx]):
+            tile = tiles[row_idx][col_idx]
+            ne = [
+                (HEX_SIZE * col_idx, HEX_SIZE * row_idx),
+                (HEX_SIZE * col_idx - HEX_HEIGHT, HEX_SIZE * row_idx - HEX_HEIGHT)]
+            nw = [(HEX_SIZE * col_idx - HEX_HEIGHT, HEX_SIZE * row_idx - HEX_HEIGHT),
+                  (HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx)]
+            e = [(HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx),
+                 (HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx + HEX_HEIGHT)]
+            sw = [(HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx + HEX_HEIGHT),
+                  (HEX_SIZE * col_idx - HEX_HEIGHT, (HEX_SIZE * row_idx) + HEX_HEIGHT + HEX_HEIGHT)]
+            se = [(HEX_SIZE * col_idx - HEX_HEIGHT, (HEX_SIZE * row_idx) + HEX_HEIGHT + HEX_HEIGHT),
+                  (HEX_SIZE * col_idx, HEX_SIZE * row_idx + HEX_HEIGHT)]
+            w = [(HEX_SIZE * col_idx, HEX_SIZE * row_idx),
+                 (HEX_SIZE * col_idx, HEX_SIZE * row_idx + HEX_HEIGHT)]
+
+            all_points = []
+            all_points.extend([ne, nw, e, sw, se, w])
+
+            for i in range(len(all_points)):
+                for j in range(2):
+                    all_points[i][j] = add_margin(all_points[i][j], row_idx)
+
+            canvas.create_polygon(all_points, outline='black', fill=get_type_colour(tile.type), width=2)
+
+            top_left_x = HEX_SIZE * col_idx - (HEX_HEIGHT // 2) - CIRCLE_RADIUS
+            top_left_y = HEX_SIZE * row_idx + (HEX_HEIGHT) - CIRCLE_RADIUS
+            top_left_x, top_left_y = add_margin((top_left_x, top_left_y), row_idx)
+            bottom_right_x = HEX_SIZE * col_idx - (HEX_HEIGHT // 2)
+            bottom_right_y = HEX_SIZE * row_idx + (HEX_HEIGHT)
+            bottom_right_x, bottom_right_y = add_margin((bottom_right_x, bottom_right_y), row_idx)
+
+            canvas.create_oval(top_left_x, top_left_y, bottom_right_x, bottom_right_y, fill="white", outline="black", width=2)
+
+            # canvas.create_polygon(nw, outline='black', fill='white', width=5)
+            # canvas.create_polygon(ne, outline='red', fill='white', width=5)
+            # canvas.create_polygon(w, outline='blue', fill='white', width=5)
+            # canvas.create_polygon(se, outline='purple', fill='white', width=5)
+            # canvas.create_polygon(sw, outline='green', fill='white', width=5)
+            # canvas.create_polygon(e, outline='yellow', fill='white', width=5)
+
 
 # Players and their colours
 class Player(Enum):
@@ -31,6 +70,16 @@ class Player(Enum):
 
     def __str__(self):
         return self.name
+    
+def get_type_colour(tileType: TileType):
+    return {
+        TileType.WOOD: "#3A6B2A",
+        TileType.BRICK: "#B5441E",
+        TileType.SHEEP: "#7BBF3A",
+        TileType.WHEAT: "#D4A843",
+        TileType.ORE: "#8A8A7A",
+        TileType.DESERT: "#C8A96A"
+    }[tileType]
 
 # TileType types
 class TileType(Enum):
@@ -149,7 +198,7 @@ def get_orientation_idx(row: int, col: int, orientation: ORIENTATION):
             return (new_row, new_col, new_orientation)
         return None
 
-def hardcode_board_connections(tiles: list[list[Tile]]):
+def add_board_connections(tiles: list[list[Tile]]):
     last_row_idx = len(BOARD_LAYOUT) - 1
     for row_idx in BOARD_LAYOUT:
         for col_idx in range(BOARD_LAYOUT[row_idx]):
@@ -204,19 +253,18 @@ def game_setup():
 
             row.append(Tile(pos, type, dice, vertices, edges))
         all_tiles.append(row)
-    hardcode_board_connections(all_tiles)
+    add_board_connections(all_tiles)
     return (all_tiles)
 
 if __name__ == "__main__":
-    all_tiles = game_setup()
-    for row in all_tiles:
-        for tile in row:
-            print()
-            print(tile)
-            for e in tile.edges:
-                if tile.edges[e].connected_to:
-                   
-                    for ce in tile.edges[e].connected_to:
-                         print(f"{tile.edges[e]} is connected to {ce}")
-            print("-----------------------------")
-    print("Board setup complete!")
+    tiles = game_setup()
+
+    root = tk.Tk()
+    root.title("Catan Board")
+    
+    canvas = tk.Canvas(root, width = 1000, height = 1000, bg="#3A9EC4")
+    canvas.pack()
+
+    board_GUI(tiles)
+
+    root.mainloop()
