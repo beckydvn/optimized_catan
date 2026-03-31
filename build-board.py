@@ -53,7 +53,8 @@ def board_GUI(tiles: list[list[Tile]]):
             bottom_right_x, bottom_right_y = add_margin((bottom_right_x, bottom_right_y), row_idx)
 
             canvas.create_oval(top_left_x, top_left_y, bottom_right_x, bottom_right_y, fill="white", outline="black", width=2)
-
+            canvas.create_text((top_left_x + bottom_right_x) / 2, (top_left_y + bottom_right_y) / 2, text=tile.dice, font=("Courier", 20, "bold"), fill="red" if tile.dice in [6, 8] else "black")
+            
             # canvas.create_polygon(nw, outline='black', fill='white', width=5)
             # canvas.create_polygon(ne, outline='red', fill='white', width=5)
             # canvas.create_polygon(w, outline='blue', fill='white', width=5)
