@@ -18,50 +18,54 @@ def add_margin(point, row_idx):
         point = (point[0] - HEX_SIZE, point[1])
     return point
 
+def get_hex_edges(row_idx, col_idx):
+    # calculate hexagon position
+    hex_edges = {
+                ORIENTATION.NE : [
+                    (HEX_SIZE * col_idx, HEX_SIZE * row_idx),
+                    (HEX_SIZE * col_idx - HEX_HEIGHT, HEX_SIZE * row_idx - HEX_HEIGHT)],
+                ORIENTATION.NW : [(HEX_SIZE * col_idx - HEX_HEIGHT, HEX_SIZE * row_idx - HEX_HEIGHT),
+                    (HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx)],
+                ORIENTATION.E : [(HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx),
+                    (HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx + HEX_HEIGHT)],
+                ORIENTATION.SW : [(HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx + HEX_HEIGHT),
+                    (HEX_SIZE * col_idx - HEX_HEIGHT, (HEX_SIZE * row_idx) + HEX_HEIGHT + HEX_HEIGHT)],
+                ORIENTATION.SE : [(HEX_SIZE * col_idx - HEX_HEIGHT, (HEX_SIZE * row_idx) + HEX_HEIGHT + HEX_HEIGHT),
+                    (HEX_SIZE * col_idx, HEX_SIZE * row_idx + HEX_HEIGHT)],
+                ORIENTATION.W : [(HEX_SIZE * col_idx, HEX_SIZE * row_idx),
+                    (HEX_SIZE * col_idx, HEX_SIZE * row_idx + HEX_HEIGHT)]
+            }
+    # add margins
+    for o in ORIENTATION:
+        for j in range(2):
+            hex_edges[o][j] = add_margin(hex_edges[o][j], row_idx)
+
+    return hex_edges
+
 def board_GUI(tiles: list[list[Tile]]):
     for row_idx in BOARD_LAYOUT:
         for col_idx in range(BOARD_LAYOUT[row_idx]):
             tile = tiles[row_idx][col_idx]
-            ne = [
-                (HEX_SIZE * col_idx, HEX_SIZE * row_idx),
-                (HEX_SIZE * col_idx - HEX_HEIGHT, HEX_SIZE * row_idx - HEX_HEIGHT)]
-            nw = [(HEX_SIZE * col_idx - HEX_HEIGHT, HEX_SIZE * row_idx - HEX_HEIGHT),
-                  (HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx)]
-            e = [(HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx),
-                 (HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx + HEX_HEIGHT)]
-            sw = [(HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx + HEX_HEIGHT),
-                  (HEX_SIZE * col_idx - HEX_HEIGHT, (HEX_SIZE * row_idx) + HEX_HEIGHT + HEX_HEIGHT)]
-            se = [(HEX_SIZE * col_idx - HEX_HEIGHT, (HEX_SIZE * row_idx) + HEX_HEIGHT + HEX_HEIGHT),
-                  (HEX_SIZE * col_idx, HEX_SIZE * row_idx + HEX_HEIGHT)]
-            w = [(HEX_SIZE * col_idx, HEX_SIZE * row_idx),
-                 (HEX_SIZE * col_idx, HEX_SIZE * row_idx + HEX_HEIGHT)]
-
-            all_points = []
-            all_points.extend([ne, nw, e, sw, se, w])
-
-            for i in range(len(all_points)):
-                for j in range(2):
-                    all_points[i][j] = add_margin(all_points[i][j], row_idx)
-
-            canvas.create_polygon(all_points, outline='black', fill=get_type_colour(tile.type), width=2)
-
+            # draw hexagon
+            canvas.create_polygon(*get_hex_edges(row_idx, col_idx).values(), outline='black', fill=get_type_colour(tile.type), width=2)
+            
+            # draw circle with dice text
             top_left_x = HEX_SIZE * col_idx - (HEX_HEIGHT // 2) - CIRCLE_RADIUS
             top_left_y = HEX_SIZE * row_idx + (HEX_HEIGHT) - CIRCLE_RADIUS
             top_left_x, top_left_y = add_margin((top_left_x, top_left_y), row_idx)
             bottom_right_x = HEX_SIZE * col_idx - (HEX_HEIGHT // 2)
             bottom_right_y = HEX_SIZE * row_idx + (HEX_HEIGHT)
             bottom_right_x, bottom_right_y = add_margin((bottom_right_x, bottom_right_y), row_idx)
-
             canvas.create_oval(top_left_x, top_left_y, bottom_right_x, bottom_right_y, fill="white", outline="black", width=2)
             canvas.create_text((top_left_x + bottom_right_x) / 2, (top_left_y + bottom_right_y) / 2, text=tile.dice, font=("Courier", 20, "bold"), fill="red" if tile.dice in [6, 8] else "black")
-            
-            # canvas.create_polygon(nw, outline='black', fill='white', width=5)
-            # canvas.create_polygon(ne, outline='red', fill='white', width=5)
-            # canvas.create_polygon(w, outline='blue', fill='white', width=5)
-            # canvas.create_polygon(se, outline='purple', fill='white', width=5)
-            # canvas.create_polygon(sw, outline='green', fill='white', width=5)
-            # canvas.create_polygon(e, outline='yellow', fill='white', width=5)
 
+    tiles[0][0].edges[ORIENTATION.W].road_placed = Road((0, 0), Player.RED)
+    for row_idx in BOARD_LAYOUT:
+        for col_idx in range(BOARD_LAYOUT[row_idx]):
+            tile = tiles[row_idx][col_idx]
+            for o in ORIENTATION:
+                if tile.edges[o].road_placed:
+                    canvas.create_polygon(get_hex_edges(row_idx, col_idx)[o], outline=tile.edges[o].road_placed.owner.name.lower(), fill='white', width=20)
 
 # Players and their colours
 class Player(Enum):
@@ -122,7 +126,7 @@ class Road(Property):
     def __init__(self, pos: tuple, owner: Player):
         super().__init__(pos, owner)
 
-class City(Property):
+class Settlement(Property):
     def __init__(self, pos: tuple, owner: Player):
         super().__init__(pos, owner)
 
@@ -204,7 +208,6 @@ def add_board_connections(tiles: list[list[Tile]]):
     for row_idx in BOARD_LAYOUT:
         for col_idx in range(BOARD_LAYOUT[row_idx]):
             tile = tiles[row_idx][col_idx]
-
             for o in ORIENTATION:
                 idx = get_orientation_idx(row_idx, col_idx, o)
                 if idx:
