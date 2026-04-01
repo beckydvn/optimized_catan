@@ -18,36 +18,64 @@ def add_margin(point, row_idx):
         point = (point[0] - HEX_SIZE, point[1])
     return point
 
-def get_hex_edges(row_idx, col_idx):
-    # calculate hexagon position
-    hex_edges = {
-                ORIENTATION.NE : [
-                    (HEX_SIZE * col_idx, HEX_SIZE * row_idx),
-                    (HEX_SIZE * col_idx - HEX_HEIGHT, HEX_SIZE * row_idx - HEX_HEIGHT)],
-                ORIENTATION.NW : [(HEX_SIZE * col_idx - HEX_HEIGHT, HEX_SIZE * row_idx - HEX_HEIGHT),
-                    (HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx)],
-                ORIENTATION.E : [(HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx),
-                    (HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx + HEX_HEIGHT)],
-                ORIENTATION.SW : [(HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx + HEX_HEIGHT),
-                    (HEX_SIZE * col_idx - HEX_HEIGHT, (HEX_SIZE * row_idx) + HEX_HEIGHT + HEX_HEIGHT)],
-                ORIENTATION.SE : [(HEX_SIZE * col_idx - HEX_HEIGHT, (HEX_SIZE * row_idx) + HEX_HEIGHT + HEX_HEIGHT),
-                    (HEX_SIZE * col_idx, HEX_SIZE * row_idx + HEX_HEIGHT)],
-                ORIENTATION.W : [(HEX_SIZE * col_idx, HEX_SIZE * row_idx),
-                    (HEX_SIZE * col_idx, HEX_SIZE * row_idx + HEX_HEIGHT)]
-            }
-    # add margins
-    for o in ORIENTATION:
-        for j in range(2):
-            hex_edges[o][j] = add_margin(hex_edges[o][j], row_idx)
+def get_hex_coords(row_idx, col_idx):
+    hex_vertices = {
+        VERTEX_ORIENTATION.N : (HEX_SIZE * col_idx - HEX_HEIGHT, HEX_SIZE * row_idx - HEX_HEIGHT),
+        VERTEX_ORIENTATION.NE : (HEX_SIZE * col_idx, HEX_SIZE * row_idx),
+        VERTEX_ORIENTATION.SW : (HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx + HEX_HEIGHT),
+        VERTEX_ORIENTATION.S : (HEX_SIZE * col_idx - HEX_HEIGHT, (HEX_SIZE * row_idx) + HEX_HEIGHT + HEX_HEIGHT),
+        VERTEX_ORIENTATION.SE : (HEX_SIZE * col_idx, HEX_SIZE * row_idx + HEX_HEIGHT),
+        VERTEX_ORIENTATION.NW : (HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx)
+    }
 
-    return hex_edges
+    # calculate hexagon position
+    # hex_edges = {
+    #             EDGE_ORIENTATION.NE : [
+    #                 (HEX_SIZE * col_idx, HEX_SIZE * row_idx),
+    #                 (HEX_SIZE * col_idx - HEX_HEIGHT, HEX_SIZE * row_idx - HEX_HEIGHT)],
+    #             EDGE_ORIENTATION.NW : [(HEX_SIZE * col_idx - HEX_HEIGHT, HEX_SIZE * row_idx - HEX_HEIGHT),
+    #                 (HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx)],
+    #             EDGE_ORIENTATION.E : [(HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx),
+    #                 (HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx + HEX_HEIGHT)],
+    #             EDGE_ORIENTATION.SW : [(HEX_SIZE * col_idx - 2 * HEX_HEIGHT, HEX_SIZE * row_idx + HEX_HEIGHT),
+    #                 (HEX_SIZE * col_idx - HEX_HEIGHT, (HEX_SIZE * row_idx) + HEX_HEIGHT + HEX_HEIGHT)],
+    #             EDGE_ORIENTATION.SE : [(HEX_SIZE * col_idx - HEX_HEIGHT, (HEX_SIZE * row_idx) + HEX_HEIGHT + HEX_HEIGHT),
+    #                 (HEX_SIZE * col_idx, HEX_SIZE * row_idx + HEX_HEIGHT)],
+    #             EDGE_ORIENTATION.W : [(HEX_SIZE * col_idx, HEX_SIZE * row_idx),
+    #                 (HEX_SIZE * col_idx, HEX_SIZE * row_idx + HEX_HEIGHT)]
+    #         }
+    # add margins
+    # for o in EDGE_ORIENTATION:
+    #     for j in range(2):
+    #         hex_edges[o][j] = add_margin(hex_edges[o][j], row_idx)
+
+    for vo in VERTEX_ORIENTATION:
+        hex_vertices[vo] = add_margin(hex_vertices[vo], row_idx)
+
+    # canvas.create_polygon(hex_vertices[VERTEX_ORIENTATION.N], outline="red", fill='white', width=10)
+    # canvas.create_polygon(hex_vertices[VERTEX_ORIENTATION.NE], outline="orange", fill='white', width=10)
+    # canvas.create_polygon(hex_vertices[VERTEX_ORIENTATION.SE], outline="yellow", fill='white', width=10)
+    # canvas.create_polygon(hex_vertices[VERTEX_ORIENTATION.S], outline="green", fill='white', width=10)
+    # canvas.create_polygon(hex_vertices[VERTEX_ORIENTATION.SW], outline="blue", fill='white', width=10)
+    # canvas.create_polygon(hex_vertices[VERTEX_ORIENTATION.NW], outline="purple", fill='white', width=10)
+
+    hex_edges = {
+        EDGE_ORIENTATION.NE : [hex_vertices[VERTEX_ORIENTATION.N], hex_vertices[VERTEX_ORIENTATION.NE]],
+        EDGE_ORIENTATION.E : [hex_vertices[VERTEX_ORIENTATION.NE], hex_vertices[VERTEX_ORIENTATION.SE]],
+        EDGE_ORIENTATION.SE : [hex_vertices[VERTEX_ORIENTATION.SE], hex_vertices[VERTEX_ORIENTATION.S]],
+        EDGE_ORIENTATION.SW : [hex_vertices[VERTEX_ORIENTATION.S], hex_vertices[VERTEX_ORIENTATION.SW]],
+        EDGE_ORIENTATION.W : [hex_vertices[VERTEX_ORIENTATION.SW], hex_vertices[VERTEX_ORIENTATION.NW]],
+        EDGE_ORIENTATION.NW : [hex_vertices[VERTEX_ORIENTATION.NW], hex_vertices[VERTEX_ORIENTATION.N]],
+    }
+
+    return hex_edges, hex_vertices
 
 def board_GUI(tiles: list[list[Tile]]):
     for row_idx in BOARD_LAYOUT:
         for col_idx in range(BOARD_LAYOUT[row_idx]):
             tile = tiles[row_idx][col_idx]
             # draw hexagon
-            canvas.create_polygon(*get_hex_edges(row_idx, col_idx).values(), outline='black', fill=get_type_colour(tile.type), width=2)
+            canvas.create_polygon(*get_hex_coords(row_idx, col_idx)[0].values(), outline='black', fill=get_type_colour(tile.type), width=2)
             
             # draw circle with dice text
             top_left_x = HEX_SIZE * col_idx - (HEX_HEIGHT // 2) - CIRCLE_RADIUS
@@ -58,14 +86,25 @@ def board_GUI(tiles: list[list[Tile]]):
             bottom_right_x, bottom_right_y = add_margin((bottom_right_x, bottom_right_y), row_idx)
             canvas.create_oval(top_left_x, top_left_y, bottom_right_x, bottom_right_y, fill="white", outline="black", width=2)
             canvas.create_text((top_left_x + bottom_right_x) / 2, (top_left_y + bottom_right_y) / 2, text=tile.dice, font=("Courier", 20, "bold"), fill="red" if tile.dice in [6, 8] else "black")
-
-    tiles[0][0].edges[ORIENTATION.W].road_placed = Road((0, 0), Player.RED)
+    tiles[0][0].edges[EDGE_ORIENTATION.NE].road_placed = Road(Player.RED)
+    tiles[0][1].edges[EDGE_ORIENTATION.SE].vertices[VERTEX_ORIENTATION.S].settlement_placed = Settlement(Player.BLUE)
+    # draw roads
     for row_idx in BOARD_LAYOUT:
         for col_idx in range(BOARD_LAYOUT[row_idx]):
             tile = tiles[row_idx][col_idx]
-            for o in ORIENTATION:
+            hex_edges = get_hex_coords(row_idx, col_idx)[0]
+            for o in EDGE_ORIENTATION:
                 if tile.edges[o].road_placed:
-                    canvas.create_polygon(get_hex_edges(row_idx, col_idx)[o], outline=tile.edges[o].road_placed.owner.name.lower(), fill='white', width=20)
+                    canvas.create_polygon(hex_edges[o], outline=tile.edges[o].road_placed.owner.name.lower(), fill='white', width=10)
+
+    for row_idx in BOARD_LAYOUT:
+        for col_idx in range(BOARD_LAYOUT[row_idx]):
+            tile = tiles[row_idx][col_idx]
+            hex_vertices = get_hex_coords(row_idx, col_idx)[1]
+            for o in EDGE_ORIENTATION:
+                for vo in get_edge_to_vertex_orientation(o):
+                    if tile.edges[o].vertices[vo].settlement_placed:
+                        canvas.create_polygon(hex_vertices[vo], outline=tile.edges[o].vertices[vo].settlement_placed.owner.name.lower(), fill='white', width=10)
 
 # Players and their colours
 class Player(Enum):
@@ -86,6 +125,16 @@ def get_type_colour(tileType: TileType):
         TileType.DESERT: "#C8A96A"
     }[tileType]
 
+def get_edge_to_vertex_orientation(edge_orientation: EDGE_ORIENTATION):
+    return {
+        EDGE_ORIENTATION.W: {VERTEX_ORIENTATION.NW, VERTEX_ORIENTATION.SW},
+        EDGE_ORIENTATION.NW: {VERTEX_ORIENTATION.N, VERTEX_ORIENTATION.NW},
+        EDGE_ORIENTATION.NE: {VERTEX_ORIENTATION.N, VERTEX_ORIENTATION.NE},
+        EDGE_ORIENTATION.E: {VERTEX_ORIENTATION.NE, VERTEX_ORIENTATION.SE},
+        EDGE_ORIENTATION.SE: {VERTEX_ORIENTATION.SE, VERTEX_ORIENTATION.S},
+        EDGE_ORIENTATION.SW: {VERTEX_ORIENTATION.SW, VERTEX_ORIENTATION.S}
+    }[edge_orientation]
+
 # TileType types
 class TileType(Enum):
     WOOD = 1
@@ -98,7 +147,7 @@ class TileType(Enum):
     def __str__(self):
         return self.name
 
-class ORIENTATION(Enum):
+class EDGE_ORIENTATION(Enum):
     W = 1
     NW = 2
     SW = 3
@@ -108,95 +157,104 @@ class ORIENTATION(Enum):
 
     def __str__(self):
         return self.name
+    
+class VERTEX_ORIENTATION(Enum):
+    N = 1
+    NW = 2
+    SW = 3
+    S = 4
+    SE = 5
+    NE = 6
+
+    def __str__(self):
+        return self.name
+
+
 
 class Port:
     def __init__(self, pos: tuple, type: TileType):
         self.row = pos[0]
         self.col = pos[1]
-        self.orientation = ORIENTATION
+        self.orientation = VERTEX_ORIENTATION
         self.type = type
 
-class Property:
-    def __init__(self, pos: tuple, owner: Player):
-        self.row = pos[0]
-        self.col = pos[1]
+class Road:
+    def __init__(self, owner: Player):
+        self.owner = owner
+    
+    def __str__(self):
+        return f"Road owned by {self.owner}"
+
+class Settlement:
+    def __init__(self, owner: Player):
         self.owner = owner
 
-class Road(Property):
-    def __init__(self, pos: tuple, owner: Player):
-        super().__init__(pos, owner)
-
-class Settlement(Property):
-    def __init__(self, pos: tuple, owner: Player):
-        super().__init__(pos, owner)
+    def __str__(self):
+        return f"Settlement owned by {self.owner}"
 
 class Vertex:
-    def __init__(self, pos: tuple, orientation: ORIENTATION):
-        self.row = pos[0]
-        self.col = pos[1]
+    def __init__(self, orientation: VERTEX_ORIENTATION):
         self.orientation = orientation
-        self.connected_to = set()
-        self.ports_connected_to = set()
-        self.property_placed: Property | None = None
+        # self.connected_to = set()
+        self.ports = set()
+        self.settlement_placed: Settlement | None = None
 
     def __str__(self):
         string = f"Vertex at ({self.row}, {self.col}, {self.orientation})"
-        if self.property_placed:
-            string += f" with property {self.property_placed}"
+        if self.settlement_placed:
+            string += f" with settlement {self.settlement_placed}"
         return string
 
 class Edge:
-    def __init__(self, pos: tuple, orientation: ORIENTATION):
-        self.row = pos[0]
-        self.col = pos[1]
+    def __init__(self, orientation: EDGE_ORIENTATION):
         self.orientation = orientation
+        self.vertices = {}
         self.connected_to = set()
         self.road_placed: Road | None = None
 
     def __str__(self):
-        string = f"Edge at ({self.row}, {self.col}, {self.orientation})"
+        string = f"Edge at ({self.parent.row}, {self.parent.col}, {self.orientation})"
         if self.road_placed:
             string += f" with road {self.road_placed}"
         return string
 
 class Tile:
-    def __init__(self, pos: tuple, type: TileType, dice: int, vertices: list[Vertex], edges: list[Edge]):
+    def __init__(self, pos: tuple, type: TileType, dice: int, edges):
         self.row = pos[0]
         self.col = pos[1]
         self.type = type
         self.dice = dice
-        self.vertices = vertices
         self.edges = edges
         self.connected_to = set()
 
     def __str__(self):
-        return f"Tile at ({self.row}, {self.col}): {self.type} with dice {self.dice}"
+        return f"Tile at ({self.parent.row}, {self.parent.col}): {self.type} with dice {self.dice}"
     
 def exists_in_board(row: int, col: int):
     if row in BOARD_LAYOUT and col < BOARD_LAYOUT[row] and col >= 0:
         return True
     return False
 
-def get_orientation_idx(row: int, col: int, orientation: ORIENTATION):
+def get_orientation_idx(row: int, col: int, orientation: EDGE_ORIENTATION):
     new_row, new_col, new_orientation = None, None, None
-    if orientation == ORIENTATION.W:
+    if orientation == EDGE_ORIENTATION.W:
         if col > 0:
-            new_row, new_col, new_orientation = (row, col - 1, ORIENTATION.E)
-    elif orientation == ORIENTATION.E:
+            new_row, new_col, new_orientation = (row, col - 1, EDGE_ORIENTATION.E)
+    elif orientation == EDGE_ORIENTATION.E:
         if col < BOARD_LAYOUT[row] - 1:
-            new_row, new_col, new_orientation = (row, col + 1, ORIENTATION.W)
-    elif orientation == ORIENTATION.NW:
+            new_row, new_col, new_orientation = (row, col + 1, EDGE_ORIENTATION.W)
+    elif orientation == EDGE_ORIENTATION.NW:
         if row > 0:
-            new_row, new_col, new_orientation = (row - 1, col, ORIENTATION.SE) if BOARD_LAYOUT[row - 1] > BOARD_LAYOUT[row] else (row - 1, col - 1, ORIENTATION.SE)
-    elif orientation == ORIENTATION.NE:
+            new_row, new_col, new_orientation = (row - 1, col, EDGE_ORIENTATION.SE) if BOARD_LAYOUT[row - 1] > BOARD_LAYOUT[row] else (row - 1, col - 1, EDGE_ORIENTATION.SE)
+    elif orientation == EDGE_ORIENTATION.NE:
         if row > 0:
-            new_row, new_col, new_orientation = (row - 1, col + 1, ORIENTATION.SW) if BOARD_LAYOUT[row - 1] > BOARD_LAYOUT[row] else (row - 1, col, ORIENTATION.SW)
-    elif orientation == ORIENTATION.SW:
+            new_row, new_col, new_orientation = (row - 1, col + 1, EDGE_ORIENTATION.SW) if BOARD_LAYOUT[row - 1] > BOARD_LAYOUT[row] else (row - 1, col, EDGE_ORIENTATION.SW)
+    elif orientation == EDGE_ORIENTATION.SW:
         if row < len(BOARD_LAYOUT) - 1:
-            new_row, new_col, new_orientation = (row + 1, col, ORIENTATION.NE) if BOARD_LAYOUT[row + 1] > BOARD_LAYOUT[row] else (row + 1, col - 1, ORIENTATION.NE)
-    elif orientation == ORIENTATION.SE:
+            new_row, new_col, new_orientation = (row + 1, col, EDGE_ORIENTATION.NE) if BOARD_LAYOUT[row + 1] > BOARD_LAYOUT[row] else (row + 1, col - 1, EDGE_ORIENTATION.NE)
+    elif orientation == EDGE_ORIENTATION.SE:
         if row < len(BOARD_LAYOUT) - 1:
-            new_row, new_col, new_orientation = (row + 1, col + 1, ORIENTATION.NW) if BOARD_LAYOUT[row + 1] > BOARD_LAYOUT[row] else (row + 1, col , ORIENTATION.NW)
+            new_row, new_col, new_orientation = (row + 1, col + 1, EDGE_ORIENTATION.NW) if BOARD_LAYOUT[row + 1] > BOARD_LAYOUT[row] else (row + 1, col , EDGE_ORIENTATION.NW)
 
     if new_row is not None:
         if exists_in_board(new_row, new_col):
@@ -208,12 +266,12 @@ def add_board_connections(tiles: list[list[Tile]]):
     for row_idx in BOARD_LAYOUT:
         for col_idx in range(BOARD_LAYOUT[row_idx]):
             tile = tiles[row_idx][col_idx]
-            for o in ORIENTATION:
+            for o in EDGE_ORIENTATION:
                 idx = get_orientation_idx(row_idx, col_idx, o)
                 if idx:
                     tile.connected_to.add(tiles[idx[0]][idx[1]])
                     tile.edges[o].connected_to.add(tiles[idx[0]][idx[1]].edges[idx[2]])
-                    tile.vertices[o].connected_to.add(tiles[idx[0]][idx[1]].vertices[idx[2]])
+                    # tile.vertices[o].connected_to.add(tiles[idx[0]][idx[1]].vertices[idx[2]])
 
 def game_setup():
     number_pieces = [
@@ -247,15 +305,15 @@ def game_setup():
         for col_idx in range(BOARD_LAYOUT[row_idx]):
             pos = (row_idx, col_idx)
             type = tiles.pop()
-            dice = number_pieces.pop() if type != TileType.DESERT else 0
+            dice = number_pieces.pop() if type != TileType.DESERT else 7
 
             vertices = {}
             edges = {}
-            for o in ORIENTATION:
-                vertices[o] = Vertex(pos, o)
-                edges[o] = Edge(pos, o)
+            for o in EDGE_ORIENTATION:
+                edges[o] = Edge(o)
+                edges[o].vertices = {vo: Vertex(vo) for vo in get_edge_to_vertex_orientation(o)}
 
-            row.append(Tile(pos, type, dice, vertices, edges))
+            row.append(Tile(pos, type, dice, edges))
         all_tiles.append(row)
     add_board_connections(all_tiles)
     return (all_tiles)
