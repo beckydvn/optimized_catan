@@ -68,7 +68,7 @@ def board_GUI(tiles: list[list[Tile]]):
             for o in EDGE_ORIENTATION:
                 if tile.edges[o].road_placed:
                     canvas.create_polygon(hex_edges[o], outline=tile.edges[o].road_placed.owner.name.lower(), fill='white', width=10)
-
+    # draw settlements
     for row_idx in BOARD_LAYOUT:
         for col_idx in range(BOARD_LAYOUT[row_idx]):
             tile = tiles[row_idx][col_idx]
@@ -76,7 +76,7 @@ def board_GUI(tiles: list[list[Tile]]):
             for o in EDGE_ORIENTATION:
                 for vo in get_edge_to_vertex_orientation(o):
                     if tile.edges[o].vertices[vo].settlement_placed:
-                        canvas.create_polygon(hex_vertices[vo], outline=tile.edges[o].vertices[vo].settlement_placed.owner.name.lower(), fill='white', width=10)
+                        canvas.create_polygon(hex_vertices[vo], outline=tile.edges[o].vertices[vo].settlement_placed.owner.name.lower(), fill='white', width=15)
 
 # Players and their colours
 class Player(Enum):
@@ -164,10 +164,11 @@ class Settlement:
         return f"Settlement owned by {self.owner}"
 
 class Vertex:
-    def __init__(self, pos: tuple, orientation: VERTEX_ORIENTATION = None):
+    def __init__(self, pos: tuple, orientation: VERTEX_ORIENTATION, edge_orientation: EDGE_ORIENTATION):
         self.row = pos[0]
         self.col = pos[1]
         self.orientation = orientation
+        self.edge_orientation = edge_orientation
         self.equal_to = set()
         self.ports = set()
         self.settlement_placed: Settlement | None = None
@@ -200,10 +201,9 @@ class Tile:
         self.type = type
         self.dice = dice
         self.edges = edges
-        self.equal_to = set()
 
     def __str__(self):
-        return f"Tile at ({self.parent.row}, {self.parent.col}): {self.type} with dice {self.dice}"
+        return f"Tile at ({self.row}, {self.col}): {self.type} with dice {self.dice}"
     
 def exists_in_board(row: int, col: int):
     if row in BOARD_LAYOUT and col < BOARD_LAYOUT[row] and col >= 0:
@@ -258,7 +258,6 @@ def add_board_connections(tiles: list[list[Tile]]):
                 result = get_orientation_idx(row_idx, col_idx, o)
                 if result:
                     new_row, new_col, new_orientation, new_vertex_map = result
-                    tile.equal_to.add(tiles[new_row][new_col])
                     tile.edges[o].equal_to.add(tiles[new_row][new_col].edges[new_orientation])
                     for vo in get_edge_to_vertex_orientation(o):
                         tile.edges[o].vertices[vo].equal_to.add(tiles[new_row][new_col].edges[new_orientation].vertices[new_vertex_map[vo]])
@@ -301,7 +300,7 @@ def game_setup():
             edges = {}
             for o in EDGE_ORIENTATION:
                 edges[o] = Edge(pos, o)
-                edges[o].vertices = {vo: Vertex(pos, vo) for vo in get_edge_to_vertex_orientation(o)}
+                edges[o].vertices = {vo: Vertex(pos, vo, o) for vo in get_edge_to_vertex_orientation(o)}
 
             row.append(Tile(pos, type, dice, edges))
         all_tiles.append(row)
@@ -322,6 +321,25 @@ def general_constraints(tiles: list[list[Tile]]):
         model.addConstr(settlements[player].sum() == 2, name=f"{player}_settlements")
         model.addConstr(roads[player].sum() == 2, name=f"{player}_roads")
 
+    # CONSTRAINT 2: settlements can't be placed on the same vertex and roads can't be placed on the same edge
+    # we use the "equal_to" sets we created to add constraints that the sum of all settlements on vertices in the same "equal_to" set is at most 1, and similarly for roads and edges
+    for row_idx in BOARD_LAYOUT:
+        for col_idx in range(BOARD_LAYOUT[row_idx]):
+            tile = tiles[row_idx][col_idx]
+            for o in EDGE_ORIENTATION:
+                edge = tile.edges[o]
+                for player in Player:
+                    # sum the current road binary var with the road binary vars for all equivalent edges
+                    all_road_var = roads[player][row_idx, col_idx, o] + gp.quicksum(roads[p][equal_edge.row, equal_edge.col, equal_edge.orientation] for equal_edge in edge.equal_to for p in Player)
+                    # only one of these can be true
+                    model.addConstr(all_road_var <= 1, name=f"{player}_road_{row_idx}_{col_idx}_{o}")
+                    for vo in get_edge_to_vertex_orientation(o):
+                        # sum the current settlement binary var with the settlement binary vars for all equivalent vertices
+                        all_settlement_var = settlements[player][row_idx, col_idx, o, vo] + gp.quicksum(settlements[p][equal_vertex.row, equal_vertex.col, equal_vertex.edge_orientation, equal_vertex.orientation] for equal_vertex in edge.vertices[vo].equal_to for p in Player)
+                        # only one of these can be true                        
+                        model.addConstr(all_settlement_var <= 1, name=f"{player}_settlement_{row_idx}_{col_idx}_{o}_{vo}")
+
+
     # CONSTRAINT 2: all settlements must be at least distance 2 from each other (no adjacent settlements)
     # iterate through the grid vertices
     # add implication constraint that if a settlement is placed at a vertex, no settlement is on the vertex it is connected to (forces them to be 2 away or more)
@@ -340,9 +358,11 @@ def general_constraints(tiles: list[list[Tile]]):
     for player in Player:
         for key, var in settlements[player].items():
             if var.x > 0.5:  # binary var is 1
+                tiles[key[0]][key[1]].edges[key[2]].vertices[key[3]].settlement_placed = Settlement(player)
                 print(f"Player {player} settlement at {key}")
         for key, var in roads[player].items():
             if var.x > 0.5:
+                tiles[key[0]][key[1]].edges[key[2]].road_placed = Road(player)
                 print(f"Player {player} road at {key}")
 
 if __name__ == "__main__":
@@ -357,7 +377,7 @@ if __name__ == "__main__":
                 for vo in get_edge_to_vertex_orientation(o):
                     print(f"Tile ({row_idx}, {col_idx}) edge {o} vertex {vo} equal to {[f'({v.row}, {v.col}, {v.orientation})' for v in tile.edges[o].vertices[vo].equal_to]}")
 
-    # general_constraints(tiles)
+    general_constraints(tiles)
 
     root = tk.Tk()
     root.title("Catan Board")
