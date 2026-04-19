@@ -9,12 +9,22 @@ from config import BOARD_LAYOUT
 class Player(Enum):
     RED = 1
     BLUE = 2
-    ORANGE = 3
+    PURPLE = 3
 
-    def __str__(self):
+    def __repr__(self):
         return self.name
 
-# TileType types
+class PortType(Enum):
+    WOOD = 1
+    BRICK = 2
+    SHEEP = 3
+    WHEAT = 4
+    ORE = 5
+    MISC = 6
+
+    def __repr__(self):
+        return self.name
+
 class TileType(Enum):
     WOOD = 1
     BRICK = 2
@@ -23,7 +33,7 @@ class TileType(Enum):
     ORE = 5
     DESERT = 6
 
-    def __str__(self):
+    def __repr__(self):
         return self.name
 
 class EDGE_ORIENTATION(Enum):
@@ -34,7 +44,7 @@ class EDGE_ORIENTATION(Enum):
     SE = 5
     NE = 6
 
-    def __str__(self):
+    def __repr__(self):
         return self.name
     
 class VERTEX_ORIENTATION(Enum):
@@ -45,28 +55,25 @@ class VERTEX_ORIENTATION(Enum):
     SE = 5
     NE = 6
 
-    def __str__(self):
+    def __repr__(self):
         return self.name
 
 class Port:
-    def __init__(self, pos: tuple, type: TileType):
-        self.row = pos[0]
-        self.col = pos[1]
-        self.orientation = VERTEX_ORIENTATION
+    def __init__(self, type: PortType):
         self.type = type
 
 class Road:
     def __init__(self, owner: Player):
         self.owner = owner
     
-    def __str__(self):
+    def __repr__(self):
         return f"Road owned by {self.owner}"
 
 class Settlement:
     def __init__(self, owner: Player):
         self.owner = owner
 
-    def __str__(self):
+    def __repr__(self):
         return f"Settlement owned by {self.owner}"
 
 class Vertex:
@@ -74,7 +81,7 @@ class Vertex:
         self.row = pos[0]
         self.col = pos[1]
         self.orientation = orientation
-        self.ports = set()
+        self.port = None
         self.adjacent_vertices = set()
         self.adjacent_edges = set()
         self.settlement_placed: Settlement | None = None
@@ -90,13 +97,14 @@ class Vertex:
         return hash(str(self))
 
 class Edge:
-    def __init__(self, pos: tuple, orientation: EDGE_ORIENTATION):
+    def __init__(self, pos: tuple, orientation: EDGE_ORIENTATION, tile: Tile):
         self.row = pos[0]
         self.col = pos[1]
         self.orientation = orientation
         # self.vertices = {}
         self.adjacent_edges = set()
         self.road_placed: Road | None = None
+        self.tile = tile
 
     def __repr__(self):
         string = f"Edge at ({self.row}, {self.col}, {self.orientation})"
@@ -180,15 +188,14 @@ def create_canonical_edges(tiles):
                         if n_orientation in tiles[n_row][n_col].edges and tiles[n_row][n_col].edges[n_orientation] is not None:
                             tile.edges[o] = tiles[n_row][n_col].edges[n_orientation]
                         else:
-                            tile.edges[o] = Edge((row_idx, col_idx), o)
+                            tile.edges[o] = Edge((row_idx, col_idx), o, tile)
                     else:
-                        tile.edges[o] = Edge((row_idx, col_idx), o)
+                        tile.edges[o] = Edge((row_idx, col_idx), o, tile)
 
 def create_canonical_vertices(tiles):
     for row_idx in BOARD_LAYOUT:
         for col_idx in range(BOARD_LAYOUT[row_idx]):
             tile = tiles[row_idx][col_idx]
-
             for vo in VERTEX_ORIENTATION:
                 if vo not in tile.vertices or tile.vertices[vo] is None:
                     # search through all edges to find if this vertex already exists on a neighbor
@@ -207,6 +214,34 @@ def create_canonical_vertices(tiles):
                                 break
                     if not found:
                         tile.vertices[vo] = Vertex((row_idx, col_idx), vo, tile)
+
+def add_ports(tiles):
+    tiles[0][0].vertices[VERTEX_ORIENTATION.N].port = Port(PortType.MISC)
+    tiles[0][0].vertices[VERTEX_ORIENTATION.NW].port = Port(PortType.MISC)
+
+    tiles[0][1].vertices[VERTEX_ORIENTATION.N].port = Port(PortType.WHEAT)
+    tiles[0][1].vertices[VERTEX_ORIENTATION.NE].port = Port(PortType.WHEAT)
+
+    tiles[1][0].vertices[VERTEX_ORIENTATION.NW].port = Port(PortType.WOOD)
+    tiles[1][0].vertices[VERTEX_ORIENTATION.SW].port = Port(PortType.WOOD)
+
+    tiles[1][3].vertices[VERTEX_ORIENTATION.N].port = Port(PortType.ORE)
+    tiles[1][3].vertices[VERTEX_ORIENTATION.NE].port = Port(PortType.ORE)
+
+    tiles[2][4].vertices[VERTEX_ORIENTATION.NE].port = Port(PortType.MISC)
+    tiles[2][4].vertices[VERTEX_ORIENTATION.SE].port = Port(PortType.MISC)
+
+    tiles[3][0].vertices[VERTEX_ORIENTATION.NW].port = Port(PortType.BRICK)
+    tiles[3][0].vertices[VERTEX_ORIENTATION.SW].port = Port(PortType.BRICK)
+
+    tiles[3][3].vertices[VERTEX_ORIENTATION.SE].port = Port(PortType.SHEEP)
+    tiles[3][3].vertices[VERTEX_ORIENTATION.S].port = Port(PortType.SHEEP)
+
+    tiles[4][0].vertices[VERTEX_ORIENTATION.SW].port = Port(PortType.MISC)
+    tiles[4][0].vertices[VERTEX_ORIENTATION.S].port = Port(PortType.MISC)
+
+    tiles[4][1].vertices[VERTEX_ORIENTATION.S].port = Port(PortType.MISC)
+    tiles[4][1].vertices[VERTEX_ORIENTATION.SE].port = Port(PortType.MISC)
 
 def get_adjacency(adjacency_order, idx):
     return {adjacency_order[(idx - 1) % len(adjacency_order)], adjacency_order[(idx + 1) % len(adjacency_order)]}
@@ -290,6 +325,7 @@ def game_setup():
         all_tiles.append(row)
 
     create_canonical_vertices(all_tiles)
+    add_ports(all_tiles)
     create_canonical_edges(all_tiles)
     
     build_adjacencies(all_tiles)

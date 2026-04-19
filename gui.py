@@ -1,4 +1,4 @@
-from board import Tile, TileType, EDGE_ORIENTATION, VERTEX_ORIENTATION
+from board import Tile, TileType, PortType, EDGE_ORIENTATION, VERTEX_ORIENTATION
 from config import *
 import tkinter as tk
 
@@ -11,6 +11,16 @@ def get_type_colour(tileType: TileType):
         TileType.ORE: "#8A8A7A",
         TileType.DESERT: "#F4DEB1"
     }[tileType]
+
+def get_port_colour(portType: PortType):
+    return {
+        PortType.WOOD: "#0C2405",
+        PortType.BRICK: "#711500",
+        PortType.SHEEP: "#5DC000",
+        PortType.WHEAT: "#9A6C00",
+        PortType.ORE: "#38382C",
+        PortType.MISC: "#FFFFFF"
+    }[portType]
 
 def add_margin(point, row_idx):
     point = (point[0] + MARGIN_X, point[1] + MARGIN_Y)
@@ -59,6 +69,14 @@ def board_GUI(tiles: list[list[Tile]], canvas):
             bottom_right_x, bottom_right_y = add_margin((bottom_right_x, bottom_right_y), row_idx)
             canvas.create_oval(top_left_x, top_left_y, bottom_right_x, bottom_right_y, fill="white", outline="black", width=2)
             canvas.create_text((top_left_x + bottom_right_x) / 2, (top_left_y + bottom_right_y) / 2, text=tile.dice, font=("Courier", 20, "bold"), fill="red" if tile.dice in [6, 8] else "black")
+    # draw ports
+    for row_idx in BOARD_LAYOUT:
+        for col_idx in range(BOARD_LAYOUT[row_idx]):
+            tile = tiles[row_idx][col_idx]
+            hex_vertices = get_hex_coords(row_idx, col_idx)[1]
+            for vo in VERTEX_ORIENTATION:
+                if tile.vertices[vo].port:    
+                    canvas.create_polygon(hex_vertices[vo], outline=get_port_colour(tile.vertices[vo].port.type), fill='white', width=35)
     # draw roads
     for row_idx in BOARD_LAYOUT:
         for col_idx in range(BOARD_LAYOUT[row_idx]):
@@ -75,6 +93,7 @@ def board_GUI(tiles: list[list[Tile]], canvas):
             for vo in VERTEX_ORIENTATION:
                 if tile.vertices[vo].settlement_placed:
                     canvas.create_polygon(hex_vertices[vo], outline=tile.vertices[vo].settlement_placed.owner.name.lower(), fill='white', width=25)
+                
 
 def draw(tiles: list[list[Tile]]):
     root = tk.Tk()

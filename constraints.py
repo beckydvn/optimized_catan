@@ -57,12 +57,50 @@ def dev_card_player_scoring(type: TileType):
         TileType.DESERT: 0
     }[type]
 
-def dev_card_player_constraint(tiles: list[list[Tile]], settlements: dict, canonical_vertices: dict, model: Model):
+def dev_card_player_constraint(settlements: dict, canonical_vertices: dict, model: Model):
     # want to prioritize wheat, sheep, and ore specifically.
     model.setObjective(
             gp.quicksum(
                 dev_card_player_scoring(vertex.tile.type) * settlements[Player.RED][id(vertex)]
                 for vertex in canonical_vertices.values()
+            ),
+            GRB.MAXIMIZE
+        )
+    
+def road_player_scoring(type: TileType):
+    return {
+        TileType.SHEEP: 3,
+        TileType.WHEAT: 3,
+        TileType.ORE: 3,
+        TileType.BRICK: 10,
+        TileType.WOOD: 10,
+        TileType.DESERT: 0
+    }[type]
+
+def road_building_player_constraint(roads: dict, canonical_edges: dict, model: Model):
+    # want to prioritize brick and wood specifically.
+    model.setObjective(
+            gp.quicksum(
+                road_player_scoring(edge.tile.type) * roads[Player.PURPLE][id(edge)]
+                for edge in canonical_edges.values()
+            ),
+            GRB.MAXIMIZE
+        )
+    
+def port_building_player_constraint(settlements: dict, canonical_vertices: dict, model: Model):
+    # must be on at least one port
+    model.addConstr(
+        gp.quicksum(
+            ((1 if vertex.port else 0) * settlements[Player.BLUE][id(vertex)] for vertex in canonical_vertices.values())
+        )
+        >= 1
+    )
+    # want to the resources of the ports the player owns
+    model.setObjective(
+            gp.quicksum(
+                (1 if other_v.tile.type == port_v.tile.type else 0) * settlements[Player.BLUE][id(port_v)] 
+                for port_v in canonical_vertices.values()
+                for other_v in canonical_vertices.values()
             ),
             GRB.MAXIMIZE
         )
@@ -92,7 +130,9 @@ def generate_constraints(tiles: list[list[Tile]]):
     no_overlaps_constraint(tiles, settlements, roads, model)
     road_connected_settlement_constraint(tiles, settlements, roads, model)
     settlement_distance_constraint(tiles, settlements, model)
-    dev_card_player_constraint(tiles, settlements, canonical_vertices, model)
+    dev_card_player_constraint(settlements, canonical_vertices, model)
+    road_building_player_constraint(roads, canonical_edges, model)
+    port_building_player_constraint(settlements, canonical_vertices, model)
 
     # all players generally want higher numbers
     for p in Player:
