@@ -306,10 +306,6 @@ def add_vertex_adjacencies(tiles: list[list[Tile]]):
                         for adj_e in tile.edges[o].adjacencies:
                             if av in adj_e.vertices:
                                 this_edge.vertices[vo].adjacencies.add((adj_e, av))
-                    # this_edge = tile.edges[o]
-                    # this_edge.vertices[vo].adjacencies = {tile.edges[this_edge.vertices[adj_vo].edge.orientation].vertices[adj_vo] for adj_vo in get_vertex_adjacencies(vo)} 
-                    # for equal_v in tile.edges[o].vertices[vo].equal_to:
-                    #     tile.edges[o].vertices[vo].adjacencies.update({tiles[equal_v.row][equal_v.col].edges[equal_v.edge.orientation].vertices[adj_vo] for adj_vo in get_vertex_adjacencies(equal_v.orientation)})
 
 def get_edge_adjacencies(o: EDGE_ORIENTATION):
     adjacency_order = [EDGE_ORIENTATION.NW, EDGE_ORIENTATION.NE, EDGE_ORIENTATION.E, EDGE_ORIENTATION.SE, EDGE_ORIENTATION.SW, EDGE_ORIENTATION.W]
