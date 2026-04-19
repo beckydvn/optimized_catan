@@ -76,14 +76,14 @@ def board_GUI(tiles: list[list[Tile]]):
             for o in EDGE_ORIENTATION:
                 for vo in get_edge_to_vertex_orientation(o):
                     if tile.edges[o].vertices[vo].settlement_placed:
-                        canvas.create_polygon(hex_vertices[vo], outline=tile.edges[o].vertices[vo].settlement_placed.owner.name.lower(), fill='white', width=15)
+                        canvas.create_polygon(hex_vertices[vo], outline=tile.edges[o].vertices[vo].settlement_placed.owner.name.lower(), fill='white', width=25)
 
 # Players and their colours
 class Player(Enum):
     RED = 1
-    BLUE = 2
-    ORANGE = 3
-    WHITE = 4
+    # BLUE = 2
+    # ORANGE = 3
+    # WHITE = 4
 
     def __str__(self):
         return self.name
@@ -164,13 +164,14 @@ class Settlement:
         return f"Settlement owned by {self.owner}"
 
 class Vertex:
-    def __init__(self, pos: tuple, orientation: VERTEX_ORIENTATION, edge_orientation: EDGE_ORIENTATION):
+    def __init__(self, pos: tuple, orientation: VERTEX_ORIENTATION, edge: Edge):
         self.row = pos[0]
         self.col = pos[1]
         self.orientation = orientation
-        self.edge_orientation = edge_orientation
+        self.edge = edge
         self.equal_to = set()
         self.ports = set()
+        self.adjacencies = set()
         self.settlement_placed: Settlement | None = None
 
     def __str__(self):
@@ -178,6 +179,9 @@ class Vertex:
         if self.settlement_placed:
             string += f" with settlement {self.settlement_placed}"
         return string
+    
+    def __hash__(self):
+        return hash(str(self))
 
 class Edge:
     def __init__(self, pos: tuple, orientation: EDGE_ORIENTATION):
@@ -194,6 +198,9 @@ class Edge:
         if self.road_placed:
             string += f" with road {self.road_placed}"
         return string
+    
+    def __hash__(self):
+        return hash(str(self))
 
 class Tile:
     def __init__(self, pos: tuple, type: TileType, dice: int, edges):
@@ -205,6 +212,9 @@ class Tile:
 
     def __str__(self):
         return f"Tile at ({self.row}, {self.col}): {self.type} with dice {self.dice}"
+    
+    def __hash__(self):
+        return hash(str(self))
     
 def exists_in_board(row: int, col: int):
     if row in BOARD_LAYOUT and col < BOARD_LAYOUT[row] and col >= 0:
@@ -248,7 +258,12 @@ def get_orientation_idx(row: int, col: int, orientation: EDGE_ORIENTATION):
         if exists_in_board(new_row, new_col):
             return (new_row, new_col, new_orientation, vertex_map)
         return None
-    print()
+    
+# def get_edges_w_vtx(vo: Vertex, tile: Tile):
+#     edges_w_vtx = {tile.edges[v_edge] for v_edge in tile.edges if vo in tile.edges[v_edge].vertices}
+#     equal_edges = [(equal_edge, ) for v_edge in edges_w_vtx for equal_edge in v_edge.equal_to]
+#     edges_w_vtx.update(equal_edges)
+#     return edges_w_vtx
 
 def add_board_connections(tiles: list[list[Tile]]):
     for row_idx in BOARD_LAYOUT:
@@ -260,38 +275,56 @@ def add_board_connections(tiles: list[list[Tile]]):
                     new_row, new_col, new_orientation, vertex_map = result
                     tile.edges[o].equal_to.add(tiles[new_row][new_col].edges[new_orientation])
                     for vo in get_edge_to_vertex_orientation(o):
+                        # add the vertex equality relative to the new edge
                         tile.edges[o].vertices[vo].equal_to.add(tiles[new_row][new_col].edges[new_orientation].vertices[vertex_map[vo]])
+                
+                # also get the other edges in this tile that have this vertex
+                for vo in get_edge_to_vertex_orientation(o):
+                    edges_w_vtx = {tile.edges[v_edge] for v_edge in tile.edges if vo in tile.edges[v_edge].vertices}
+                    for e in edges_w_vtx:
+                        tile.edges[o].vertices[vo].equal_to.add(tiles[e.row][e.col].edges[e.orientation].vertices[vo])                    
 
-# def get_vertex_adjacencies(row: int, col :int, o: EDGE_ORIENTATION, vo: VERTEX_ORIENTATION):
-#     # new_row, new_col, new_orientation = None, None, None
-#     vertex_adjacency_map = {
-#         VERTEX_ORIENTATION.N: (row - 1, col) if BOARD_LAYOUT[row - 1] < BOARD_LAYOUT[row] else (row - 1, col + 1),
-#         VERTEX_ORIENTATION.S: (row + 1, col if BOARD_LAYOUT[row + 1] < BOARD_LAYOUT[row] else (row + 1, col + 1)),
-#         VERTEX_ORIENTATION.E: ()
-#     }
-#     if vo == VERTEX_ORIENTATION.N:
-#         adjN = (new_row - 1, col, VERTEX_ORIENTATION.NW) if BOARD_LAYOUT[row - 1] < BOARD_LAYOUT[row] else (new_row - 1, col + 1, VERTEX_ORIENTATION.NW)
+def get_adjacency(adjacency_order, idx):
+    return {adjacency_order[(idx - 1) % len(adjacency_order)], adjacency_order[(idx + 1) % len(adjacency_order)]}
 
-# def add_vertex_adjacencies(tiles: list[list[Tile]]):
-#     for row_idx in BOARD_LAYOUT:
-#         for col_idx in range(BOARD_LAYOUT[row_idx]):
-#             tile = tiles[row_idx][col_idx]
-#             for o in EDGE_ORIENTATION:
-#                 for vo in get_edge_to_vertex_orientation(o):
-#                     pass
+def get_vertex_adjacencies(vo: VERTEX_ORIENTATION):
+    adjacency_order = [VERTEX_ORIENTATION.N, VERTEX_ORIENTATION.NE, VERTEX_ORIENTATION.SE, VERTEX_ORIENTATION.S, VERTEX_ORIENTATION.SW, VERTEX_ORIENTATION.NW]
+    idx = adjacency_order.index(vo)
+    return get_adjacency(adjacency_order, idx)
+
+def add_vertex_adjacencies(tiles: list[list[Tile]]):
+    for row_idx in BOARD_LAYOUT:
+        for col_idx in range(BOARD_LAYOUT[row_idx]):
+            tile = tiles[row_idx][col_idx]
+            for o in EDGE_ORIENTATION:
+                this_edge = tile.edges[o]
+                for vo in get_edge_to_vertex_orientation(o):
+                    this_edge.vertices[vo].adjacencies = set()
+                    adj_vo = get_vertex_adjacencies(vo)
+                    for av in adj_vo:
+                        # find the adjacent edge with this vertex
+                        for adj_e in tile.edges[o].adjacencies:
+                            if av in adj_e.vertices:
+                                this_edge.vertices[vo].adjacencies.add((adj_e, av))
+                    # this_edge = tile.edges[o]
+                    # this_edge.vertices[vo].adjacencies = {tile.edges[this_edge.vertices[adj_vo].edge.orientation].vertices[adj_vo] for adj_vo in get_vertex_adjacencies(vo)} 
+                    # for equal_v in tile.edges[o].vertices[vo].equal_to:
+                    #     tile.edges[o].vertices[vo].adjacencies.update({tiles[equal_v.row][equal_v.col].edges[equal_v.edge.orientation].vertices[adj_vo] for adj_vo in get_vertex_adjacencies(equal_v.orientation)})
 
 def get_edge_adjacencies(o: EDGE_ORIENTATION):
     adjacency_order = [EDGE_ORIENTATION.NW, EDGE_ORIENTATION.NE, EDGE_ORIENTATION.E, EDGE_ORIENTATION.SE, EDGE_ORIENTATION.SW, EDGE_ORIENTATION.W]
     idx = adjacency_order.index(o)
-    return {adjacency_order[(idx - 1) % len(adjacency_order)], adjacency_order[(idx + 1) % len(adjacency_order)]}
+    return get_adjacency(adjacency_order, idx)
 
 def add_edge_adjacencies(tiles: list[list[Tile]]):
     for row_idx in BOARD_LAYOUT:
         for col_idx in range(BOARD_LAYOUT[row_idx]):
+            tile = tiles[row_idx][col_idx]
             for o in EDGE_ORIENTATION:
-                tile = tiles[row_idx][col_idx]
+                # edges directly adjacent
                 tile.edges[o].adjacencies = {tile.edges[adj_o] for adj_o in get_edge_adjacencies(o)} 
                 for equal_edge in tile.edges[o].equal_to:
+                    # edges adjacent in the other tile (get this by getting the "equal" edge and getting the edges adjacent to those ones)
                     tile.edges[o].adjacencies.update({tiles[equal_edge.row][equal_edge.col].edges[adj_o] for adj_o in get_edge_adjacencies(equal_edge.orientation)})
 
 def game_setup():
@@ -330,13 +363,12 @@ def game_setup():
             edges = {}
             for o in EDGE_ORIENTATION:
                 edges[o] = Edge(pos, o)
-                edges[o].vertices = {vo: Vertex(pos, vo, o) for vo in get_edge_to_vertex_orientation(o)}
-
-
+                edges[o].vertices = {vo: Vertex(pos, vo, edges[o]) for vo in get_edge_to_vertex_orientation(o)}
             row.append(Tile(pos, type, dice, edges))
         all_tiles.append(row)
     add_board_connections(all_tiles)
     add_edge_adjacencies(all_tiles)
+    add_vertex_adjacencies(all_tiles)
     return (all_tiles)   
 
 def general_constraints(tiles: list[list[Tile]]):
@@ -360,40 +392,61 @@ def general_constraints(tiles: list[list[Tile]]):
             tile = tiles[row_idx][col_idx]
             for o in EDGE_ORIENTATION:
                 edge = tile.edges[o]
-                for player in Player:
-                    # sum the current road binary var with the road binary vars for all equivalent edges
-                    all_road_var = roads[player][row_idx, col_idx, o] + gp.quicksum(roads[p][equal_edge.row, equal_edge.col, equal_edge.orientation] for equal_edge in edge.equal_to for p in Player)
-                    # only one of these can be true
-                    model.addConstr(all_road_var <= 1, name=f"{player}_road_{row_idx}_{col_idx}_{o}")
-                    for vo in get_edge_to_vertex_orientation(o):
-                        # sum the current settlement binary var with the settlement binary vars for all equivalent vertices
-                        all_settlement_var = settlements[player][row_idx, col_idx, o, vo] + gp.quicksum(settlements[p][equal_vertex.row, equal_vertex.col, equal_vertex.edge_orientation, equal_vertex.orientation] for equal_vertex in edge.vertices[vo].equal_to for p in Player)
-                        # only one of these can be true                        
-                        model.addConstr(all_settlement_var <= 1, name=f"{player}_settlement_{row_idx}_{col_idx}_{o}_{vo}")
-
+                # for player in Player:
+                # sum the current road binary var with the road binary vars for all equivalent edges
+                all_road_var = gp.quicksum(roads[p][row_idx, col_idx, o] for p in Player) + gp.quicksum(roads[p][equal_edge.row, equal_edge.col, equal_edge.orientation] for equal_edge in edge.equal_to for p in Player)
+                # only one of these can be true
+                model.addConstr(all_road_var <= 1, name=f"{player}_road_{row_idx}_{col_idx}_{o}")
+                for vo in get_edge_to_vertex_orientation(o):
+                    # sum the current settlement binary var with the settlement binary vars for all equivalent vertices
+                    all_settlement_var = gp.quicksum(settlements[p][row_idx, col_idx, o, vo] for p in Player) + gp.quicksum(settlements[p][equal_vertex.edge.row, equal_vertex.edge.col, equal_vertex.edge.orientation, equal_vertex.orientation] for equal_vertex in edge.vertices[vo].equal_to for p in Player)
+                    # only one of these can be true                        
+                    model.addConstr(all_settlement_var <= 1, name=f"{player}_settlement_{row_idx}_{col_idx}_{o}_{vo}")
 
     # CONSTRAINT 3: all settlements must be at least distance 2 from each other (no adjacent settlements)
     # iterate through the grid vertices
-    # add implication constraint that if a settlement is placed at a vertex, no settlement is on the vertex it is connected to (forces them to be 2 away or more)
+    # add implication constraint that if a settlement is placed at a vertex, no settlement is on any vertices it is connected to (forces them to be 2 away or more)
     # for row_idx in BOARD_LAYOUT:
     #     for col_idx in range(BOARD_LAYOUT[row_idx]):
+    #         tile = tiles[row_idx][col_idx]
     #         for o in EDGE_ORIENTATION:
     #             for vo in get_edge_to_vertex_orientation(o):
     #                 for player in Player:
-    #                     for settlement in settlements[player].keys():
-    #                         model.addGenConstrIndicator(settlement, True, y == 1)
+    #                     model.addGenConstrIndicator(settlements[player][row_idx, col_idx, o, vo], True, gp.quicksum(settlements[p][adj_e.row, adj_e.col, adj_e.orientation, adj_v] for (adj_e, adj_v) in tile.edges[o].vertices[vo].adjacencies for p in Player) == 0)
 
-
+    # CONSTRAINT 4: all settlements must be connected to a road also owned by that player
+    # for row_idx in BOARD_LAYOUT:
+    #     for col_idx in range(BOARD_LAYOUT[row_idx]):
+    #         tile = tiles[row_idx][col_idx]
+    #         for o in EDGE_ORIENTATION:
+    #             for vo in get_edge_to_vertex_orientation(o):
+    #                 for player in Player:
+    #                     possible_edges = [v_eq.edge for v_eq in tile.edges[o].vertices[vo].equal_to]
+    #                     model.addGenConstrIndicator(settlements[player][row_idx, col_idx, o, vo], True, gp.quicksum(roads[player][edge.row, edge.col, edge.orientation] for edge in possible_edges) >= 1)
+    # count how many variables are in the model
+    print(f"Number of settlement vars: {sum(len(settlements[p]) for p in Player)}")
+    print(f"Number of road vars: {sum(len(roads[p]) for p in Player)}")
+    print(f"Number of constraints: {model.numConstrs}")
     model.optimize()
-    assert model.status == GRB.OPTIMAL
+
+    if model.status == GRB.INFEASIBLE:
+        print("Model is infeasible, computing IIS...")
+        model.computeIIS()
+        model.write("infeasible.ilp")  # writes the conflicting constraints to a file
+        
+        # print the conflicting constraints directly
+        for c in model.getConstrs():
+            if c.IISConstr:
+                print(f"Conflicting constraint: {c.constrName}")
+    # assert model.status == GRB.OPTIMAL
 
     for player in Player:
         for key, var in settlements[player].items():
-            if var.x > 0.5:  # binary var is 1
+            if var.x == 1:  # binary var is 1
                 tiles[key[0]][key[1]].edges[key[2]].vertices[key[3]].settlement_placed = Settlement(player)
                 print(f"Player {player} settlement at {key}")
         for key, var in roads[player].items():
-            if var.x > 0.5:
+            if var.x == 1:
                 tiles[key[0]][key[1]].edges[key[2]].road_placed = Road(player)
                 print(f"Player {player} road at {key}")
 
@@ -405,10 +458,13 @@ if __name__ == "__main__":
         for col_idx in range(BOARD_LAYOUT[row_idx]):
             tile = tiles[row_idx][col_idx]
             for o in EDGE_ORIENTATION:
-                print(f"Edge ({row_idx}, {col_idx}, {o}) is adjacent to {[str(adj) for adj in tile.edges[o].adjacencies]}")
+                # print(f"Edge ({row_idx}, {col_idx}, {o}) is adjacent to {[str(adj) for adj in tile.edges[o].adjacencies]}")
                 # print(f"Tile ({row_idx}, {col_idx}) edge {o} equal to {[f'({t.row}, {t.col}, {t.orientation})' for t in tile.edges[o].equal_to]}")
-                # for vo in get_edge_to_vertex_orientation(o):
-                #     print(f"Tile ({row_idx}, {col_idx}) edge {o} vertex {vo} equal to {[f'({v.row}, {v.col}, {v.orientation})' for v in tile.edges[o].vertices[vo].equal_to]}")
+                for vo in get_edge_to_vertex_orientation(o):
+                    # print(f"Vertex ({row_idx}, {col_idx}, {vo}) is adjacent to {[(str(adj[0]), str(adj[1])) for adj in tile.edges[o].vertices[vo].adjacencies]}")
+                    print(f"\nTile ({row_idx}, {col_idx}) edge {o}, vertex {vo} equal to:") 
+                    for v in tile.edges[o].vertices[vo].equal_to:
+                        print(f"({v.row}, {v.col}, edge {v.edge.orientation}, vertex {v.orientation})")
             print()
         print()
     general_constraints(tiles)
