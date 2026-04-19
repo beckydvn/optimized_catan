@@ -1,8 +1,9 @@
 from __future__ import annotations
 from enum import Enum
 import random
-
-BOARD_LAYOUT = {0: 3, 1: 4, 2: 5, 3: 4, 4: 3}
+import gurobipy as gp
+from gurobipy import GRB
+from config import BOARD_LAYOUT
 
 # Players and their colours
 class Player(Enum):
@@ -14,40 +15,6 @@ class Player(Enum):
     def __str__(self):
         return self.name
 
-# TileType types
-class TileType(Enum):
-    WOOD = 1
-    BRICK = 2
-    SHEEP = 3
-    WHEAT = 4
-    ORE = 5
-    DESERT = 6
-
-    def __str__(self):
-        return self.name
-
-class EDGE_ORIENTATION(Enum):
-    W = 1
-    NW = 2
-    SW = 3
-    E = 4
-    SE = 5
-    NE = 6
-
-    def __str__(self):
-        return self.name
-    
-class VERTEX_ORIENTATION(Enum):
-    N = 1
-    NW = 2
-    SW = 3
-    S = 4
-    SE = 5
-    NE = 6
-
-    def __str__(self):
-        return self.name
-    
 # TileType types
 class TileType(Enum):
     WOOD = 1
@@ -153,16 +120,6 @@ class Tile:
     
     def __hash__(self):
         return hash(str(self))
-    
-def get_edge_to_vertex_orientation(edge_orientation: EDGE_ORIENTATION):
-    return {
-        EDGE_ORIENTATION.W: {VERTEX_ORIENTATION.NW, VERTEX_ORIENTATION.SW},
-        EDGE_ORIENTATION.NW: {VERTEX_ORIENTATION.N, VERTEX_ORIENTATION.NW},
-        EDGE_ORIENTATION.NE: {VERTEX_ORIENTATION.N, VERTEX_ORIENTATION.NE},
-        EDGE_ORIENTATION.E: {VERTEX_ORIENTATION.NE, VERTEX_ORIENTATION.SE},
-        EDGE_ORIENTATION.SE: {VERTEX_ORIENTATION.SE, VERTEX_ORIENTATION.S},
-        EDGE_ORIENTATION.SW: {VERTEX_ORIENTATION.SW, VERTEX_ORIENTATION.S}
-    }[edge_orientation]
 
 def exists_in_board(row: int, col: int):
     if row in BOARD_LAYOUT and col < BOARD_LAYOUT[row] and col >= 0:
@@ -280,30 +237,6 @@ def build_adjacencies(tiles):
                 for adj_vo in get_vertex_adjacencies(vo):
                     vertex.adjacent_vertices.add(tile.vertices[adj_vo])
 
-def print_adjacencies(tiles):
-    seen_edges = set()
-    seen_vertices = set()
-
-    for row_idx in BOARD_LAYOUT:
-        for col_idx in range(BOARD_LAYOUT[row_idx]):
-            tile = tiles[row_idx][col_idx]
-
-            for o in EDGE_ORIENTATION:
-                edge = tile.edges[o]
-                if id(edge) not in seen_edges:
-                    seen_edges.add(id(edge))
-                    print(f"Edge ({row_idx},{col_idx},{o}): {len(edge.adjacent_edges)} adjacent edges")
-                    for adj in edge.adjacent_edges:
-                        print(f"  -> {adj}")
-
-            for vo in VERTEX_ORIENTATION:
-                vertex = tile.vertices[vo]
-                if id(vertex) not in seen_vertices:
-                    seen_vertices.add(id(vertex))
-                    print(f"Vertex ({row_idx},{col_idx},{vo}): {len(vertex.adjacent_vertices)} adjacent vertices")
-                    for adj in vertex.adjacent_vertices:
-                        print(f"  -> {adj}")
-
 def game_setup():
     number_pieces = [
         2, 
@@ -342,31 +275,13 @@ def game_setup():
 
     create_canonical_vertices(all_tiles)
     create_canonical_edges(all_tiles)
-
-    print(id(all_tiles[0][0].edges[EDGE_ORIENTATION.SW]))
-    print(id(all_tiles[1][0].edges[EDGE_ORIENTATION.NE]))
-    # these should be identical!
     
     build_adjacencies(all_tiles)
 
-    # verify no duplicates
-    all_edges = set()
-    all_vertices = set()
-
-    for row_idx in BOARD_LAYOUT:
-        for col_idx in range(BOARD_LAYOUT[row_idx]):
-            tile = all_tiles[row_idx][col_idx]
-            for o in EDGE_ORIENTATION:
-                all_edges.add(id(tile.edges[o]))
-                for vo in VERTEX_ORIENTATION:
-                    all_vertices.add(id(tile.vertices[vo]))
-
-    print(f"Unique edges: {len(all_edges)}")      # expect 72
-    print(f"Unique vertices: {len(all_vertices)}") # expect 54
-
-    print_adjacencies(all_tiles)
-
     return (all_tiles) 
 
-if __name__ == "__main__":
-    tiles = game_setup()
+
+# if __name__ == "__main__":
+#     tiles = game_setup()
+#     # general_constraints(tiles)
+    
