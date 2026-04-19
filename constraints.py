@@ -25,6 +25,13 @@ def road_connected_settlement_constraint(tiles: list[list[Tile]], settlements: d
                 for p in Player:
                     model.addGenConstrIndicator(settlements[p][id(tiles[row_idx][col_idx].vertices[vo])], True, gp.quicksum(roads[p][id(adj_e)] for adj_e in tiles[row_idx][col_idx].vertices[vo].adjacent_edges) >= 1)
 
+def settlement_distance_constraint(tiles: list[list[Tile]], settlements: dict, roads: dict, model: Model):
+    for row_idx in BOARD_LAYOUT:
+        for col_idx in range(BOARD_LAYOUT[row_idx]):
+            for vo in VERTEX_ORIENTATION:
+                for player in Player:
+                    model.addGenConstrIndicator(settlements[player][id(tiles[row_idx][col_idx].vertices[vo])], True, gp.quicksum(settlements[p][id(tiles[adj_v.row][adj_v.col].vertices[adj_v.orientation])] for p in Player for adj_v in tiles[row_idx][col_idx].vertices[vo].adjacent_vertices) == 0)
+
 def generate_constraints(tiles: list[list[Tile]]):
     model = gp.Model(f"Catan Constraints")
     canonical_edges = {}
@@ -49,6 +56,7 @@ def generate_constraints(tiles: list[list[Tile]]):
     two_settlements_two_roads_constraint(settlements, roads, model)
     no_overlaps_constraint(tiles, settlements, roads, model)
     road_connected_settlement_constraint(tiles, settlements, roads, model)
+    settlement_distance_constraint(tiles, settlements, roads, model)
 
     model.optimize()
     if model.status == GRB.INFEASIBLE:
