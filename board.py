@@ -77,6 +77,7 @@ class Vertex:
         self.orientation = orientation
         self.ports = set()
         self.adjacent_vertices = set()
+        self.adjacent_edges = set()
         self.settlement_placed: Settlement | None = None
 
     def __repr__(self):
@@ -210,6 +211,18 @@ def create_canonical_vertices(tiles):
 def get_adjacency(adjacency_order, idx):
     return {adjacency_order[(idx - 1) % len(adjacency_order)], adjacency_order[(idx + 1) % len(adjacency_order)]}
 
+def get_vertex_edge_adjacencies(vo: VERTEX_ORIENTATION):
+    # maps each vertex to the 2 edges that touch it on this tile
+    adjacency_map = {
+        VERTEX_ORIENTATION.N:  [EDGE_ORIENTATION.NW, EDGE_ORIENTATION.NE],
+        VERTEX_ORIENTATION.NE: [EDGE_ORIENTATION.NE, EDGE_ORIENTATION.E],
+        VERTEX_ORIENTATION.SE: [EDGE_ORIENTATION.E,  EDGE_ORIENTATION.SE],
+        VERTEX_ORIENTATION.S:  [EDGE_ORIENTATION.SE, EDGE_ORIENTATION.SW],
+        VERTEX_ORIENTATION.SW: [EDGE_ORIENTATION.SW, EDGE_ORIENTATION.W],
+        VERTEX_ORIENTATION.NW: [EDGE_ORIENTATION.W,  EDGE_ORIENTATION.NW],
+    }
+    return adjacency_map[vo]
+
 def get_vertex_adjacencies(vo: VERTEX_ORIENTATION):
     adjacency_order = [VERTEX_ORIENTATION.N, VERTEX_ORIENTATION.NE, VERTEX_ORIENTATION.SE, VERTEX_ORIENTATION.S, VERTEX_ORIENTATION.SW, VERTEX_ORIENTATION.NW]
     idx = adjacency_order.index(vo)
@@ -236,6 +249,9 @@ def build_adjacencies(tiles):
                 # add adjacent vertices from this tile's perspective
                 for adj_vo in get_vertex_adjacencies(vo):
                     vertex.adjacent_vertices.add(tile.vertices[adj_vo])
+                # add edge adjacencies
+                for adj_o in get_vertex_edge_adjacencies(vo):
+                    vertex.adjacent_edges.add(tile.edges[adj_o])
 
 def game_setup():
     number_pieces = [
