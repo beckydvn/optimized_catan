@@ -186,6 +186,7 @@ class Edge:
         self.orientation = orientation
         self.vertices = {}
         self.equal_to = set()
+        self.adjacencies = set()
         self.road_placed: Road | None = None
 
     def __str__(self):
@@ -211,56 +212,87 @@ def exists_in_board(row: int, col: int):
     return False
 
 def get_orientation_idx(row: int, col: int, orientation: EDGE_ORIENTATION):
-    new_row, new_col, new_orientation, new_vertex_map = None, None, None, {}
+    new_row, new_col, new_orientation, vertex_map = None, None, None, {}
     if orientation == EDGE_ORIENTATION.W:
         if col > 0:
             new_row, new_col, new_orientation = (row, col - 1, EDGE_ORIENTATION.E)
-            new_vertex_map[VERTEX_ORIENTATION.NW] = VERTEX_ORIENTATION.NE
-            new_vertex_map[VERTEX_ORIENTATION.SW] = VERTEX_ORIENTATION.SE
+            vertex_map[VERTEX_ORIENTATION.NW] = VERTEX_ORIENTATION.NE
+            vertex_map[VERTEX_ORIENTATION.SW] = VERTEX_ORIENTATION.SE
     elif orientation == EDGE_ORIENTATION.E:
         if col < BOARD_LAYOUT[row] - 1:
             new_row, new_col, new_orientation = (row, col + 1, EDGE_ORIENTATION.W)
-            new_vertex_map[VERTEX_ORIENTATION.NE] = VERTEX_ORIENTATION.NW
-            new_vertex_map[VERTEX_ORIENTATION.SE] = VERTEX_ORIENTATION.SW
+            vertex_map[VERTEX_ORIENTATION.NE] = VERTEX_ORIENTATION.NW
+            vertex_map[VERTEX_ORIENTATION.SE] = VERTEX_ORIENTATION.SW
     elif orientation == EDGE_ORIENTATION.NW:
         if row > 0:
             new_row, new_col, new_orientation = (row - 1, col, EDGE_ORIENTATION.SE) if BOARD_LAYOUT[row - 1] > BOARD_LAYOUT[row] else (row - 1, col - 1, EDGE_ORIENTATION.SE)
-            new_vertex_map[VERTEX_ORIENTATION.N] = VERTEX_ORIENTATION.SE
-            new_vertex_map[VERTEX_ORIENTATION.NW] = VERTEX_ORIENTATION.S
+            vertex_map[VERTEX_ORIENTATION.N] = VERTEX_ORIENTATION.SE
+            vertex_map[VERTEX_ORIENTATION.NW] = VERTEX_ORIENTATION.S
     elif orientation == EDGE_ORIENTATION.NE:
         if row > 0:
             new_row, new_col, new_orientation = (row - 1, col + 1, EDGE_ORIENTATION.SW) if BOARD_LAYOUT[row - 1] > BOARD_LAYOUT[row] else (row - 1, col, EDGE_ORIENTATION.SW)
-            new_vertex_map[VERTEX_ORIENTATION.N] = VERTEX_ORIENTATION.SW
-            new_vertex_map[VERTEX_ORIENTATION.NE] = VERTEX_ORIENTATION.S
+            vertex_map[VERTEX_ORIENTATION.N] = VERTEX_ORIENTATION.SW
+            vertex_map[VERTEX_ORIENTATION.NE] = VERTEX_ORIENTATION.S
     elif orientation == EDGE_ORIENTATION.SW:
         if row < len(BOARD_LAYOUT) - 1:
             new_row, new_col, new_orientation = (row + 1, col, EDGE_ORIENTATION.NE) if BOARD_LAYOUT[row + 1] > BOARD_LAYOUT[row] else (row + 1, col - 1, EDGE_ORIENTATION.NE)
-            new_vertex_map[VERTEX_ORIENTATION.S] = VERTEX_ORIENTATION.NE
-            new_vertex_map[VERTEX_ORIENTATION.SW] = VERTEX_ORIENTATION.N
+            vertex_map[VERTEX_ORIENTATION.S] = VERTEX_ORIENTATION.NE
+            vertex_map[VERTEX_ORIENTATION.SW] = VERTEX_ORIENTATION.N
     elif orientation == EDGE_ORIENTATION.SE:
         if row < len(BOARD_LAYOUT) - 1:
             new_row, new_col, new_orientation = (row + 1, col + 1, EDGE_ORIENTATION.NW) if BOARD_LAYOUT[row + 1] > BOARD_LAYOUT[row] else (row + 1, col , EDGE_ORIENTATION.NW)
-            new_vertex_map[VERTEX_ORIENTATION.S] = VERTEX_ORIENTATION.NW
-            new_vertex_map[VERTEX_ORIENTATION.SE] = VERTEX_ORIENTATION.N
+            vertex_map[VERTEX_ORIENTATION.S] = VERTEX_ORIENTATION.NW
+            vertex_map[VERTEX_ORIENTATION.SE] = VERTEX_ORIENTATION.N
 
     if new_row is not None:
         if exists_in_board(new_row, new_col):
-            return (new_row, new_col, new_orientation, new_vertex_map)
+            return (new_row, new_col, new_orientation, vertex_map)
         return None
     print()
 
 def add_board_connections(tiles: list[list[Tile]]):
-    last_row_idx = len(BOARD_LAYOUT) - 1
     for row_idx in BOARD_LAYOUT:
         for col_idx in range(BOARD_LAYOUT[row_idx]):
             tile = tiles[row_idx][col_idx]
             for o in EDGE_ORIENTATION:
                 result = get_orientation_idx(row_idx, col_idx, o)
                 if result:
-                    new_row, new_col, new_orientation, new_vertex_map = result
+                    new_row, new_col, new_orientation, vertex_map = result
                     tile.edges[o].equal_to.add(tiles[new_row][new_col].edges[new_orientation])
                     for vo in get_edge_to_vertex_orientation(o):
-                        tile.edges[o].vertices[vo].equal_to.add(tiles[new_row][new_col].edges[new_orientation].vertices[new_vertex_map[vo]])
+                        tile.edges[o].vertices[vo].equal_to.add(tiles[new_row][new_col].edges[new_orientation].vertices[vertex_map[vo]])
+
+# def get_vertex_adjacencies(row: int, col :int, o: EDGE_ORIENTATION, vo: VERTEX_ORIENTATION):
+#     # new_row, new_col, new_orientation = None, None, None
+#     vertex_adjacency_map = {
+#         VERTEX_ORIENTATION.N: (row - 1, col) if BOARD_LAYOUT[row - 1] < BOARD_LAYOUT[row] else (row - 1, col + 1),
+#         VERTEX_ORIENTATION.S: (row + 1, col if BOARD_LAYOUT[row + 1] < BOARD_LAYOUT[row] else (row + 1, col + 1)),
+#         VERTEX_ORIENTATION.E: ()
+#     }
+#     if vo == VERTEX_ORIENTATION.N:
+#         adjN = (new_row - 1, col, VERTEX_ORIENTATION.NW) if BOARD_LAYOUT[row - 1] < BOARD_LAYOUT[row] else (new_row - 1, col + 1, VERTEX_ORIENTATION.NW)
+
+# def add_vertex_adjacencies(tiles: list[list[Tile]]):
+#     for row_idx in BOARD_LAYOUT:
+#         for col_idx in range(BOARD_LAYOUT[row_idx]):
+#             tile = tiles[row_idx][col_idx]
+#             for o in EDGE_ORIENTATION:
+#                 for vo in get_edge_to_vertex_orientation(o):
+#                     pass
+
+def get_edge_adjacencies(o: EDGE_ORIENTATION):
+    adjacency_order = [EDGE_ORIENTATION.NW, EDGE_ORIENTATION.NE, EDGE_ORIENTATION.E, EDGE_ORIENTATION.SE, EDGE_ORIENTATION.SW, EDGE_ORIENTATION.W]
+    idx = adjacency_order.index(o)
+    return {adjacency_order[(idx - 1) % len(adjacency_order)], adjacency_order[(idx + 1) % len(adjacency_order)]}
+
+def add_edge_adjacencies(tiles: list[list[Tile]]):
+    for row_idx in BOARD_LAYOUT:
+        for col_idx in range(BOARD_LAYOUT[row_idx]):
+            for o in EDGE_ORIENTATION:
+                tile = tiles[row_idx][col_idx]
+                tile.edges[o].adjacencies = {tile.edges[adj_o] for adj_o in get_edge_adjacencies(o)} 
+                for equal_edge in tile.edges[o].equal_to:
+                    tile.edges[o].adjacencies.update({tiles[equal_edge.row][equal_edge.col].edges[adj_o] for adj_o in get_edge_adjacencies(equal_edge.orientation)})
 
 def game_setup():
     number_pieces = [
@@ -295,16 +327,16 @@ def game_setup():
             pos = (row_idx, col_idx)
             type = tiles.pop()
             dice = number_pieces.pop() if type != TileType.DESERT else 7
-
-            vertices = {}
             edges = {}
             for o in EDGE_ORIENTATION:
                 edges[o] = Edge(pos, o)
                 edges[o].vertices = {vo: Vertex(pos, vo, o) for vo in get_edge_to_vertex_orientation(o)}
 
+
             row.append(Tile(pos, type, dice, edges))
         all_tiles.append(row)
     add_board_connections(all_tiles)
+    add_edge_adjacencies(all_tiles)
     return (all_tiles)   
 
 def general_constraints(tiles: list[list[Tile]]):
@@ -340,7 +372,7 @@ def general_constraints(tiles: list[list[Tile]]):
                         model.addConstr(all_settlement_var <= 1, name=f"{player}_settlement_{row_idx}_{col_idx}_{o}_{vo}")
 
 
-    # CONSTRAINT 2: all settlements must be at least distance 2 from each other (no adjacent settlements)
+    # CONSTRAINT 3: all settlements must be at least distance 2 from each other (no adjacent settlements)
     # iterate through the grid vertices
     # add implication constraint that if a settlement is placed at a vertex, no settlement is on the vertex it is connected to (forces them to be 2 away or more)
     # for row_idx in BOARD_LAYOUT:
@@ -373,10 +405,12 @@ if __name__ == "__main__":
         for col_idx in range(BOARD_LAYOUT[row_idx]):
             tile = tiles[row_idx][col_idx]
             for o in EDGE_ORIENTATION:
-                print(f"Tile ({row_idx}, {col_idx}) edge {o} equal to {[f'({t.row}, {t.col}, {t.orientation})' for t in tile.edges[o].equal_to]}")
-                for vo in get_edge_to_vertex_orientation(o):
-                    print(f"Tile ({row_idx}, {col_idx}) edge {o} vertex {vo} equal to {[f'({v.row}, {v.col}, {v.orientation})' for v in tile.edges[o].vertices[vo].equal_to]}")
-
+                print(f"Edge ({row_idx}, {col_idx}, {o}) is adjacent to {[str(adj) for adj in tile.edges[o].adjacencies]}")
+                # print(f"Tile ({row_idx}, {col_idx}) edge {o} equal to {[f'({t.row}, {t.col}, {t.orientation})' for t in tile.edges[o].equal_to]}")
+                # for vo in get_edge_to_vertex_orientation(o):
+                #     print(f"Tile ({row_idx}, {col_idx}) edge {o} vertex {vo} equal to {[f'({v.row}, {v.col}, {v.orientation})' for v in tile.edges[o].vertices[vo].equal_to]}")
+            print()
+        print()
     general_constraints(tiles)
 
     root = tk.Tk()
