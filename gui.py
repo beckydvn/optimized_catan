@@ -9,7 +9,7 @@ def get_type_colour(tileType: TileType):
         TileType.SHEEP: "#7BBF3A",
         TileType.WHEAT: "#D4A843",
         TileType.ORE: "#8A8A7A",
-        TileType.DESERT: "#C8A96A"
+        TileType.DESERT: "#F4DEB1"
     }[tileType]
 
 def add_margin(point, row_idx):

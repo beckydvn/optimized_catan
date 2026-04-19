@@ -10,7 +10,6 @@ class Player(Enum):
     RED = 1
     BLUE = 2
     ORANGE = 3
-    WHITE = 4
 
     def __str__(self):
         return self.name
@@ -71,7 +70,7 @@ class Settlement:
         return f"Settlement owned by {self.owner}"
 
 class Vertex:
-    def __init__(self, pos: tuple, orientation: VERTEX_ORIENTATION):
+    def __init__(self, pos: tuple, orientation: VERTEX_ORIENTATION, tile: Tile):
         self.row = pos[0]
         self.col = pos[1]
         self.orientation = orientation
@@ -79,6 +78,7 @@ class Vertex:
         self.adjacent_vertices = set()
         self.adjacent_edges = set()
         self.settlement_placed: Settlement | None = None
+        self.tile = tile
 
     def __repr__(self):
         string = f"Vertex at ({self.row}, {self.col}, {self.orientation})"
@@ -206,7 +206,7 @@ def create_canonical_vertices(tiles):
                                 found = True
                                 break
                     if not found:
-                        tile.vertices[vo] = Vertex((row_idx, col_idx), vo)
+                        tile.vertices[vo] = Vertex((row_idx, col_idx), vo, tile)
 
 def get_adjacency(adjacency_order, idx):
     return {adjacency_order[(idx - 1) % len(adjacency_order)], adjacency_order[(idx + 1) % len(adjacency_order)]}
