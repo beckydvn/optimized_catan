@@ -3,6 +3,7 @@ from config import *
 import tkinter as tk
 
 def get_type_colour(tileType: TileType):
+    """Returns a colour for the given tile type."""
     return {
         TileType.WOOD: "#3A6B2A",
         TileType.BRICK: "#B5441E",
@@ -13,6 +14,7 @@ def get_type_colour(tileType: TileType):
     }[tileType]
 
 def get_port_colour(portType: PortType):
+    """Returns a colour for the given port type."""
     return {
         PortType.WOOD: "#0C2405",
         PortType.BRICK: "#711500",
@@ -23,6 +25,7 @@ def get_port_colour(portType: PortType):
     }[portType]
 
 def add_margin(point, row_idx):
+    """Adds a margin to the given point based on the row index, to account for the staggered layout of the board."""
     point = (point[0] + MARGIN_X, point[1] + MARGIN_Y)
     if row_idx  in [1, 3]:
         point = (point[0] - HEX_SIZE // 2, point[1])
@@ -31,6 +34,7 @@ def add_margin(point, row_idx):
     return point
 
 def get_hex_coords(row_idx, col_idx):
+    """Returns the coordinates of the vertices and edges of the hexagon at the given row and column index."""
     hex_vertices = {
         VERTEX_ORIENTATION.N : (HEX_SIZE * col_idx - HEX_HEIGHT, HEX_SIZE * row_idx - HEX_HEIGHT),
         VERTEX_ORIENTATION.NE : (HEX_SIZE * col_idx, HEX_SIZE * row_idx),
@@ -55,6 +59,7 @@ def get_hex_coords(row_idx, col_idx):
     return hex_edges, hex_vertices
 
 def board_GUI(tiles: list[list[Tile]], canvas):
+    """Draw the board."""
     for row_idx in BOARD_LAYOUT:
         for col_idx in range(BOARD_LAYOUT[row_idx]):
             tile = tiles[row_idx][col_idx]
@@ -98,7 +103,6 @@ def board_GUI(tiles: list[list[Tile]], canvas):
 def draw(tiles: list[list[Tile]]):
     root = tk.Tk()
     root.title("Catan Board")
-    
     canvas = tk.Canvas(root, width = 1000, height = 1000, bg="#3A9EC4")
     canvas.pack()
     board_GUI(tiles, canvas)

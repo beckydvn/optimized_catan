@@ -5,8 +5,9 @@ import gurobipy as gp
 from gurobipy import GRB
 from config import BOARD_LAYOUT
 
-# Players and their colours
+
 class Player(Enum):
+    """Enum representing the players in the game."""
     RED = 1
     BLUE = 2
     PURPLE = 3
@@ -18,6 +19,7 @@ class Player(Enum):
         return self.name
 
 class PortType(Enum):
+    """Enum representing the types of ports in the game."""
     WOOD = 1
     BRICK = 2
     SHEEP = 3
@@ -29,6 +31,7 @@ class PortType(Enum):
         return self.name
 
 class TileType(Enum):
+    """Enum representing the types of tiles in the game."""
     WOOD = 1
     BRICK = 2
     SHEEP = 3
@@ -40,6 +43,7 @@ class TileType(Enum):
         return self.name
 
 class EDGE_ORIENTATION(Enum):
+    """Enum representing the orientations of edges in the game."""
     W = 1
     NW = 2
     SW = 3
@@ -51,6 +55,7 @@ class EDGE_ORIENTATION(Enum):
         return self.name
     
 class VERTEX_ORIENTATION(Enum):
+    """Enum representing the orientations of vertices in the game."""
     N = 1
     NW = 2
     SW = 3
@@ -139,6 +144,8 @@ def exists_in_board(row: int, col: int):
     return False
 
 def get_equivalent(row: int, col: int, orientation: EDGE_ORIENTATION):
+    """Given a tile at (row, col) and an edge orientation, returns the equivalent edge on the neighboring tile that shares this edge, along with a mapping of the vertices that are shared between these edges. 
+    Returns None if there is no neighboring tile in that direction (i.e. we're on the edge of the board)."""
     new_row, new_col, new_orientation, vertex_map = None, None, None, {}
     if orientation == EDGE_ORIENTATION.W:
         if col > 0:
@@ -177,6 +184,7 @@ def get_equivalent(row: int, col: int, orientation: EDGE_ORIENTATION):
         return None
 
 def create_canonical_edges(tiles):
+    """Iterates through the board and creates Edge objects for each edge, ensuring that the same edge object is used for neighboring tiles that share an edge."""
     for row_idx in BOARD_LAYOUT:
         for col_idx in range(BOARD_LAYOUT[row_idx]):
             tile = tiles[row_idx][col_idx]
@@ -196,6 +204,7 @@ def create_canonical_edges(tiles):
                         tile.edges[o] = Edge((row_idx, col_idx), o, tile)
 
 def create_canonical_vertices(tiles):
+    """Iterates through the board and creates Vertex objects for each vertex, ensuring that the same vertex object is used for neighboring tiles that share a vertex."""
     for row_idx in BOARD_LAYOUT:
         for col_idx in range(BOARD_LAYOUT[row_idx]):
             tile = tiles[row_idx][col_idx]
@@ -219,6 +228,7 @@ def create_canonical_vertices(tiles):
                         tile.vertices[vo] = Vertex((row_idx, col_idx), vo, tile)
 
 def add_ports(tiles):
+    """Manually add the port positions (these are taken from the standard Catan board layout)."""
     tiles[0][0].vertices[VERTEX_ORIENTATION.N].port = Port(PortType.MISC)
     tiles[0][0].vertices[VERTEX_ORIENTATION.NW].port = Port(PortType.MISC)
 
@@ -247,10 +257,11 @@ def add_ports(tiles):
     tiles[4][1].vertices[VERTEX_ORIENTATION.SE].port = Port(PortType.MISC)
 
 def get_adjacency(adjacency_order, idx):
+    """Helper function to get the adjacent vertices or edges in a circular manner."""
     return {adjacency_order[(idx - 1) % len(adjacency_order)], adjacency_order[(idx + 1) % len(adjacency_order)]}
 
 def get_vertex_edge_adjacencies(vo: VERTEX_ORIENTATION):
-    # maps each vertex to the 2 edges that touch it on this tile
+    """Maps each vertex to the 2 edges that touch it on this tile."""
     adjacency_map = {
         VERTEX_ORIENTATION.N:  [EDGE_ORIENTATION.NW, EDGE_ORIENTATION.NE],
         VERTEX_ORIENTATION.NE: [EDGE_ORIENTATION.NE, EDGE_ORIENTATION.E],
@@ -262,7 +273,7 @@ def get_vertex_edge_adjacencies(vo: VERTEX_ORIENTATION):
     return adjacency_map[vo]
 
 def get_edge_vertex_adjacencies(o: EDGE_ORIENTATION):
-    # maps each vertex to the 2 edges that touch it on this tile
+    """Maps each edge to the 2 vertices that touch it on this tile."""
     adjacency_map = {
         EDGE_ORIENTATION.E:  [VERTEX_ORIENTATION.NE, VERTEX_ORIENTATION.SE],
         EDGE_ORIENTATION.NE: [VERTEX_ORIENTATION.N, VERTEX_ORIENTATION.NE],
@@ -274,16 +285,19 @@ def get_edge_vertex_adjacencies(o: EDGE_ORIENTATION):
     return adjacency_map[o]
 
 def get_vertex_adjacencies(vo: VERTEX_ORIENTATION):
+    """Get the vertices that are adjacent to this vertex on the same tile."""
     adjacency_order = [VERTEX_ORIENTATION.N, VERTEX_ORIENTATION.NE, VERTEX_ORIENTATION.SE, VERTEX_ORIENTATION.S, VERTEX_ORIENTATION.SW, VERTEX_ORIENTATION.NW]
     idx = adjacency_order.index(vo)
     return get_adjacency(adjacency_order, idx)
 
 def get_edge_adjacencies(o: EDGE_ORIENTATION):
+    """Get the edges that are adjacent to this edge on the same tile."""
     adjacency_order = [EDGE_ORIENTATION.NW, EDGE_ORIENTATION.NE, EDGE_ORIENTATION.E, EDGE_ORIENTATION.SE, EDGE_ORIENTATION.SW, EDGE_ORIENTATION.W]
     idx = adjacency_order.index(o)
     return get_adjacency(adjacency_order, idx)
 
 def build_adjacencies(tiles):
+    """Iterates through the board and builds the adjacency sets for each vertex and edge, so we can easily access this information when generating constraints."""
     for row_idx in BOARD_LAYOUT:
         for col_idx in range(BOARD_LAYOUT[row_idx]):
             tile = tiles[row_idx][col_idx]
@@ -306,6 +320,7 @@ def build_adjacencies(tiles):
                     vertex.adjacent_edges.add(tile.edges[adj_o])
 
 def game_setup():
+    """Sets up the board by generating the tiles, edges, vertices, and ports according to the standard Catan board layout."""
     number_pieces = [
         2, 
         3, 3, 

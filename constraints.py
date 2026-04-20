@@ -3,6 +3,7 @@ from gurobipy import GRB
 import gurobipy as gp
 
 class Constraints:
+    """This class defines the combinatorial optimization model for Catan, including the decision variables, constraints, and objective function."""
     def __init__(self, tiles: list[list[Tile]], player_count: int, road_count: int, settlement_count: int):
         self.tiles = tiles
         self.player_count = player_count
@@ -31,6 +32,7 @@ class Constraints:
 
     @staticmethod
     def probability_score(value: int):
+        """Returns a score for a given dice value based on its probability of being rolled (higher probabilities are better, exponentially)."""
         return {
             7: 0,
             2: 3,
@@ -46,13 +48,13 @@ class Constraints:
         }[value]
 
     def two_settlements_two_roads_constraint(self):
-        # every player places exactly 2 roads and 2 settlements
+        """Constraint: every player places exactly road_count roads and settlement_count settlements."""
         for player in self.players:
             self.model.addConstr(self.settlements[player].sum() == self.settlement_count)
             self.model.addConstr(self.roads[player].sum() == self.road_count)
 
     def no_overlaps_constraint(self):
-        # settlements can't be placed on the same vertex and roads can't be placed on the same edge
+        """Constraint: settlements can't be placed on the same vertex and roads can't be placed on the same edge."""
         for row_idx in BOARD_LAYOUT:
             for col_idx in range(BOARD_LAYOUT[row_idx]):
                 for o in EDGE_ORIENTATION:
@@ -61,7 +63,7 @@ class Constraints:
                     self.model.addConstr(gp.quicksum(self.settlements[p][id(self.tiles[row_idx][col_idx].vertices[vo])] for p in self.players) <= 1)
 
     def settlement_connected_road_constraint(self):
-        # all settlements must be connected to a road also owned by that player
+        """Constraint: all settlements must be connected to a road also owned by that player."""
         for row_idx in BOARD_LAYOUT:
             for col_idx in range(BOARD_LAYOUT[row_idx]):
                 for vo in VERTEX_ORIENTATION:
@@ -69,7 +71,7 @@ class Constraints:
                         self.model.addGenConstrIndicator(self.settlements[p][id(self.tiles[row_idx][col_idx].vertices[vo])], True, gp.quicksum(self.roads[p][id(adj_e)] for adj_e in self.tiles[row_idx][col_idx].vertices[vo].adjacent_edges) >= 1)
 
     def road_connected_settlement_constraint(self):
-        # all settlements must be connected to a road also owned by that player
+        """Constraint: all roads must be connected to a settlement also owned by that player."""
         for row_idx in BOARD_LAYOUT:
             for col_idx in range(BOARD_LAYOUT[row_idx]):
                 for o in EDGE_ORIENTATION:
@@ -77,11 +79,11 @@ class Constraints:
                         self.model.addGenConstrIndicator(
                             self.roads[p][id(self.tiles[row_idx][col_idx].edges[o])], 
                             True, 
-                            gp.quicksum(self.settlements[p][id(adj_v)] for adj_v in self.tiles[row_idx][col_idx].edges[o].adjacent_vertices) +  \
-                            gp.quicksum(self.roads[p][id(adj_e)] for adj_e in self.tiles[row_idx][col_idx].edges[o].adjacent_edges) >= 1
+                            gp.quicksum(self.settlements[p][id(adj_v)] for adj_v in self.tiles[row_idx][col_idx].edges[o].adjacent_vertices) >= 1
                         )
 
     def settlement_distance_constraint(self):
+        """Constraint: settlements must be at least 2 vertices apart."""
         for row_idx in BOARD_LAYOUT:
             for col_idx in range(BOARD_LAYOUT[row_idx]):
                 for vo in VERTEX_ORIENTATION:
@@ -93,8 +95,8 @@ class Constraints:
                         )
 
     def maximize_resource_diversity(self):
+        """Objective: maximize the diversity of resources for each player."""
         for p in self.players:
-            # want to prioritize wheat, sheep, and ore specifically.
             self.model.setObjective(
                 len({(vertex.tile.type) for vertex in self.canonical_vertices.values() if self.settlements[p][id(vertex)]}),
                     GRB.MAXIMIZE
@@ -102,6 +104,7 @@ class Constraints:
 
     @staticmethod
     def dev_card_player_scoring(type: TileType):
+        """Returns scores for the player focusing on the development card victory point strategy, which prioritizes wheat, sheep, and ore."""
         return {
             TileType.SHEEP: 243,
             TileType.WHEAT: 243,
@@ -112,6 +115,8 @@ class Constraints:
         }[type]
 
     def dev_card_player_constraint(self):
+        """Objective: For the player focusing on the development card victory point strategy, maximize the number of wheat, sheep, and ore tiles they have settlements on.
+        Constraint: This player must have at least as many wheat, sheep, and ore tiles as every other player."""
         # want to prioritize wheat, sheep, and ore specifically.
         self.model.setObjective(
                 gp.quicksum(
@@ -120,6 +125,7 @@ class Constraints:
                 ),
                 GRB.MAXIMIZE
             )
+        
         for p in self.players:
             if p == Player.PURPLE:
                 continue
@@ -137,6 +143,7 @@ class Constraints:
     
     @staticmethod
     def road_player_scoring(type: TileType):
+        """Returns scores for the player focusing on the longest road strategy, which prioritizes wood and brick."""
         return {
             TileType.SHEEP: 27,
             TileType.WHEAT: 27,
@@ -147,7 +154,8 @@ class Constraints:
         }[type]
 
     def road_building_player_constraint(self):
-        # want to prioritize brick and wood specifically.
+        """Objective: For the player focusing on the road building strategy, maximize the number of wood and brick tiles they have settlements on.
+        Constraint: This player must have at least as many wood and brick tiles as every other player."""
         self.model.setObjective(
             gp.quicksum(
                 Constraints.road_player_scoring(edge.tile.type) * self.roads[Player.RED][id(edge)]
@@ -171,6 +179,10 @@ class Constraints:
             )
         
     def port_building_player_constraint(self):
+        """Constraint: For the player focusing on the port building strategy, they must occupy at least one port.
+        Objective: For the player focusing on the port building strategy, maximize the number of ports they have settlements on.
+        Objective: For the player focusing on the port building strategy, maximize the number of resources they have access to relevant to their ports.
+        Constraint: For the player focusing on the port building strategy, they must have at least as many ports as every other player."""
         # must be on at least one port
         self.model.addConstr(
             gp.quicksum(
@@ -201,6 +213,7 @@ class Constraints:
             )
 
     def generate_constraints(self, evaluate_only = False):
+        """Generate all the constraints for the model."""
         self.two_settlements_two_roads_constraint()
         self.no_overlaps_constraint()
         self.settlement_connected_road_constraint()
@@ -222,12 +235,6 @@ class Constraints:
             )
 
         self.model.optimize()
-        # if self.model.status == GRB.INFEASIBLE:
-        #     print("Model is infeasible, computing IIS...")
-        #     self.model.computeIIS()
-        #     self.model.write("infeasible.ilp")  # writes the conflicting constraints to a file
-
-        # assert self.model.status == GRB.OPTIMAL
 
         if not evaluate_only:
             for player in self.players:
