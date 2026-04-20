@@ -1,4 +1,4 @@
-# Welcome to Combinatorial Catan!
+# Welcome to Optimized Catan!
 Please note that this project uses [tkinter](https://docs.python.org/3/library/tkinter.html) (should come pre-installed with your Python installation, but otherwise, see the docs) and Gurobi.
 
 To install Gurobi, run `pip install -r requirements.txt`.
