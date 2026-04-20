@@ -200,7 +200,7 @@ class Constraints:
                 )
             )
 
-    def generate_constraints(self):
+    def generate_constraints(self, evaluate_only = False):
         self.two_settlements_two_roads_constraint()
         self.no_overlaps_constraint()
         self.settlement_connected_road_constraint()
@@ -222,18 +222,18 @@ class Constraints:
             )
 
         self.model.optimize()
-        if self.model.status == GRB.INFEASIBLE:
-            print("Model is infeasible, computing IIS...")
-            self.model.computeIIS()
-            self.model.write("infeasible.ilp")  # writes the conflicting constraints to a file
+        # if self.model.status == GRB.INFEASIBLE:
+        #     print("Model is infeasible, computing IIS...")
+        #     self.model.computeIIS()
+        #     self.model.write("infeasible.ilp")  # writes the conflicting constraints to a file
 
-        assert self.model.status == GRB.OPTIMAL
+        # assert self.model.status == GRB.OPTIMAL
 
-        for player in self.players:
-            for key, var in self.settlements[player].items():
-                if var.x == 1:  # binary var is 1
-                    self.canonical_vertices[key].settlement_placed = Settlement(player)
-            for key, var in self.roads[player].items():
-                if var.x == 1:
-                    self.canonical_edges[key].road_placed = Road(player)
-        
+        if not evaluate_only:
+            for player in self.players:
+                for key, var in self.settlements[player].items():
+                    if var.x == 1:  # binary var is 1
+                        self.canonical_vertices[key].settlement_placed = Settlement(player)
+                for key, var in self.roads[player].items():
+                    if var.x == 1:
+                        self.canonical_edges[key].road_placed = Road(player)
