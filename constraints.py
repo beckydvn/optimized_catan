@@ -4,11 +4,10 @@ import gurobipy as gp
 
 class Constraints:
     """This class defines the combinatorial optimization model for Catan, including the decision variables, constraints, and objective function."""
-    def __init__(self, tiles: list[list[Tile]], player_count: int, road_count: int, settlement_count: int):
+    def __init__(self, tiles: list[list[Tile]], player_count: int, road_settlement_count: int):
         self.tiles = tiles
         self.player_count = player_count
-        self.road_count = road_count
-        self.settlement_count = settlement_count
+        self.road_settlement_count = road_settlement_count
         self.players = [p for p in Player][:player_count]
         self.model = gp.Model(f"Catan Constraints")
         self.canonical_edges = {}
@@ -50,8 +49,8 @@ class Constraints:
     def two_settlements_two_roads_constraint(self):
         """Constraint: every player places exactly road_count roads and settlement_count settlements."""
         for player in self.players:
-            self.model.addConstr(self.settlements[player].sum() == self.settlement_count)
-            self.model.addConstr(self.roads[player].sum() == self.road_count)
+            self.model.addConstr(self.settlements[player].sum() == self.road_settlement_count)
+            self.model.addConstr(self.roads[player].sum() == self.road_settlement_count)
 
     def no_overlaps_constraint(self):
         """Constraint: settlements can't be placed on the same vertex and roads can't be placed on the same edge."""
@@ -242,10 +241,20 @@ class Constraints:
         self.model.optimize()
 
         if not evaluate_only:
-            for player in self.players:
-                for key, var in self.settlements[player].items():
-                    if var.x == 1:  # binary var is 1
-                        self.canonical_vertices[key].settlement_placed = Settlement(player)
-                for key, var in self.roads[player].items():
-                    if var.x == 1:
-                        self.canonical_edges[key].road_placed = Road(player)
+            if self.model.status == GRB.OPTIMAL:
+                for player in self.players:
+                    for key, var in self.settlements[player].items():
+                        if var.x == 1:  # binary var is 1
+                            self.canonical_vertices[key].settlement_placed = Settlement(player)
+                    for key, var in self.roads[player].items():
+                        if var.x == 1:
+                            self.canonical_edges[key].road_placed = Road(player)
+            elif self.model.status == GRB.INFEASIBLE:
+                print("Model is infeasible, computing IIS...")
+                self.model.computeIIS()
+                self.model.write("infeasible.ilp")  # writes the conflicting constraints to a file
+                
+                # print the conflicting constraints directly
+                for c in self.model.getConstrs():
+                    if c.IISConstr:
+                        print(f"Conflicting constraint: {c.constrName}")
