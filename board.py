@@ -11,7 +11,8 @@ class Player(Enum):
     BLUE = 2
     PURPLE = 3
     CYAN = 4
-    PINK = 5
+    MEGENTA = 5
+    BROWN = 6
 
     def __repr__(self):
         return self.name
@@ -347,9 +348,4 @@ def game_setup():
     build_adjacencies(all_tiles)
 
     return (all_tiles) 
-
-
-# if __name__ == "__main__":
-#     tiles = game_setup()
-#     # general_constraints(tiles)
     
