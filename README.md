@@ -3,7 +3,7 @@ Please note that this project uses [tkinter](https://docs.python.org/3/library/t
 
 To install Gurobi, run `pip install -r requirements.txt`.
 
-To run a custom version of the combinatorial algorithm (which spawns the GUI):
+To run with custom parameters (which spawns the GUI):
 `python3 -m main [player_count (from 3 - 6)] [road_settlement_count (from 2 - 6)]`.
 
 e.g.
