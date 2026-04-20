@@ -11,8 +11,8 @@ class Player(Enum):
     RED = 1
     BLUE = 2
     PURPLE = 3
-    CYAN = 4
-    MAGENTA = 5
+    MAGENTA = 4
+    CYAN = 5
     BROWN = 6
 
     def __repr__(self):

@@ -114,24 +114,24 @@ class Constraints:
             TileType.DESERT: 0
         }[type]
 
-    def dev_card_player_constraint(self):
+    def dev_card_player_constraint(self, dev_player: Player):
         """Objective: For the player focusing on the development card victory point strategy, maximize the number of wheat, sheep, and ore tiles they have settlements on.
         Constraint: This player must have at least as many wheat, sheep, and ore tiles as every other player."""
         # want to prioritize wheat, sheep, and ore specifically.
         self.model.setObjective(
                 gp.quicksum(
-                    Constraints.dev_card_player_scoring(vertex.tile.type) * self.settlements[Player.PURPLE][id(vertex)]
+                    Constraints.dev_card_player_scoring(vertex.tile.type) * self.settlements[dev_player][id(vertex)]
                     for vertex in self.canonical_vertices.values()
                 ),
                 GRB.MAXIMIZE
             )
         
         for p in self.players:
-            if p == Player.PURPLE:
+            if p == dev_player:
                 continue
             self.model.addConstr(
                 gp.quicksum(
-                    Constraints.dev_card_player_scoring(vertex.tile.type) * self.settlements[Player.PURPLE][id(vertex)]
+                    Constraints.dev_card_player_scoring(vertex.tile.type) * self.settlements[dev_player][id(vertex)]
                     for vertex in self.canonical_vertices.values()
                 )
                 >=
@@ -153,22 +153,22 @@ class Constraints:
             TileType.DESERT: 0
         }[type]
 
-    def road_building_player_constraint(self):
+    def road_building_player_constraint(self, road_player: Player):
         """Objective: For the player focusing on the road building strategy, maximize the number of wood and brick tiles they have settlements on.
         Constraint: This player must have at least as many wood and brick tiles as every other player."""
         self.model.setObjective(
             gp.quicksum(
-                Constraints.road_player_scoring(edge.tile.type) * self.roads[Player.RED][id(edge)]
+                Constraints.road_player_scoring(edge.tile.type) * self.roads[road_player][id(edge)]
                 for edge in self.canonical_edges.values()
             ),
             GRB.MAXIMIZE
         )
         for p in self.players:
-            if p == Player.RED:
+            if p == road_player:
                 continue
             self.model.addConstr(
                 gp.quicksum(
-                    Constraints.road_player_scoring(edge.tile.type) * self.roads[Player.RED][id(edge)]
+                    Constraints.road_player_scoring(edge.tile.type) * self.roads[road_player][id(edge)]
                     for edge in self.canonical_edges.values()
                 )
                 >=
@@ -178,7 +178,7 @@ class Constraints:
                 )
             )
         
-    def port_building_player_constraint(self):
+    def port_building_player_constraint(self, port_player: Player):
         """Constraint: For the player focusing on the port building strategy, they must occupy at least one port.
         Objective: For the player focusing on the port building strategy, maximize the number of ports they have settlements on.
         Objective: For the player focusing on the port building strategy, maximize the number of resources they have access to relevant to their ports.
@@ -186,25 +186,25 @@ class Constraints:
         # must be on at least one port
         self.model.addConstr(
             gp.quicksum(
-                (100 if vertex.port else 0) * self.settlements[Player.BLUE][id(vertex)] for vertex in self.canonical_vertices.values()
+                (100 if vertex.port else 0) * self.settlements[port_player][id(vertex)] for vertex in self.canonical_vertices.values()
             )
             >= 1
         )
         # want to maximize the resources of the ports the player owns
         self.model.setObjective(
             gp.quicksum(
-                (100 if other_v.tile.type == port_v.tile.type else 0) * self.settlements[Player.BLUE][id(port_v)] 
+                (100 if other_v.tile.type == port_v.tile.type else 0) * self.settlements[port_player][id(port_v)] 
                 for port_v in self.canonical_vertices.values()
                 for other_v in self.canonical_vertices.values()
             ),
             GRB.MAXIMIZE
         )
         for p in self.players:
-            if p == Player.BLUE:
+            if p == port_player:
                 continue
             self.model.addConstr(
                 gp.quicksum(
-                    (100 if vertex.port else 0) * self.settlements[Player.BLUE][id(vertex)] for vertex in self.canonical_vertices.values()
+                    (100 if vertex.port else 0) * self.settlements[port_player][id(vertex)] for vertex in self.canonical_vertices.values()
                 )
                 >=
                 gp.quicksum(
@@ -220,9 +220,14 @@ class Constraints:
         self.road_connected_settlement_constraint()
         self.settlement_distance_constraint()
         self.maximize_resource_diversity()
-        self.dev_card_player_constraint()
-        self.road_building_player_constraint()
-        self.port_building_player_constraint()
+
+        for i in range(len(self.players)):
+            if i in [1, 4]:
+                self.road_building_player_constraint(self.players[i])
+            elif i in [2, 5]:
+                self.port_building_player_constraint(self.players[i])
+            elif i in [3, 6]:
+                self.dev_card_player_constraint(self.players[i])
 
         # all players generally want higher numbers
         for p in self.players:
