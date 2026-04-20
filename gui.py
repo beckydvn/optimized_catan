@@ -76,7 +76,7 @@ def board_GUI(tiles: list[list[Tile]], canvas):
             hex_vertices = get_hex_coords(row_idx, col_idx)[1]
             for vo in VERTEX_ORIENTATION:
                 if tile.vertices[vo].port:    
-                    canvas.create_polygon(hex_vertices[vo], outline=get_port_colour(tile.vertices[vo].port.type), fill='white', width=35)
+                    canvas.create_polygon(hex_vertices[vo], outline=get_port_colour(tile.vertices[vo].port.type), fill='white', width=40)
     # draw roads
     for row_idx in BOARD_LAYOUT:
         for col_idx in range(BOARD_LAYOUT[row_idx]):

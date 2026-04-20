@@ -10,6 +10,8 @@ class Player(Enum):
     RED = 1
     BLUE = 2
     PURPLE = 3
+    CYAN = 4
+    PINK = 5
 
     def __repr__(self):
         return self.name
@@ -101,8 +103,8 @@ class Edge:
         self.row = pos[0]
         self.col = pos[1]
         self.orientation = orientation
-        # self.vertices = {}
         self.adjacent_edges = set()
+        self.adjacent_vertices = set()
         self.road_placed: Road | None = None
         self.tile = tile
 
@@ -258,6 +260,18 @@ def get_vertex_edge_adjacencies(vo: VERTEX_ORIENTATION):
     }
     return adjacency_map[vo]
 
+def get_edge_vertex_adjacencies(o: EDGE_ORIENTATION):
+    # maps each vertex to the 2 edges that touch it on this tile
+    adjacency_map = {
+        EDGE_ORIENTATION.E:  [VERTEX_ORIENTATION.NE, VERTEX_ORIENTATION.SE],
+        EDGE_ORIENTATION.NE: [VERTEX_ORIENTATION.N, VERTEX_ORIENTATION.NE],
+        EDGE_ORIENTATION.SE: [VERTEX_ORIENTATION.SE, VERTEX_ORIENTATION.S],
+        EDGE_ORIENTATION.W:  [VERTEX_ORIENTATION.NW, VERTEX_ORIENTATION.SW],
+        EDGE_ORIENTATION.SW: [VERTEX_ORIENTATION.SW, VERTEX_ORIENTATION.S],
+        EDGE_ORIENTATION.NW: [VERTEX_ORIENTATION.N, VERTEX_ORIENTATION.NW],
+    }
+    return adjacency_map[o]
+
 def get_vertex_adjacencies(vo: VERTEX_ORIENTATION):
     adjacency_order = [VERTEX_ORIENTATION.N, VERTEX_ORIENTATION.NE, VERTEX_ORIENTATION.SE, VERTEX_ORIENTATION.S, VERTEX_ORIENTATION.SW, VERTEX_ORIENTATION.NW]
     idx = adjacency_order.index(vo)
@@ -278,6 +292,8 @@ def build_adjacencies(tiles):
                 # add adjacent edges from this tile's perspective
                 for adj_o in get_edge_adjacencies(o):
                     edge.adjacent_edges.add(tile.edges[adj_o])
+                for adj_vo in get_edge_vertex_adjacencies(o):
+                    edge.adjacent_vertices.add(tile.vertices[adj_vo])
 
             for vo in VERTEX_ORIENTATION:
                 vertex = tile.vertices[vo]

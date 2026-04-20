@@ -21,7 +21,7 @@ def two_settlements_two_roads_constraint(settlements: dict, roads: dict, model: 
     # every player places exactly 2 roads and 2 settlements
     for player in Player:
         model.addConstr(settlements[player].sum() == 2)
-        model.addConstr(roads[player].sum() == 2)
+        model.addConstr(roads[player].sum() == 3)
 
 def no_overlaps_constraint(tiles: list[list[Tile]], settlements: dict, roads: dict, model: Model):
     # settlements can't be placed on the same vertex and roads can't be placed on the same edge
@@ -32,7 +32,7 @@ def no_overlaps_constraint(tiles: list[list[Tile]], settlements: dict, roads: di
             for vo in VERTEX_ORIENTATION:
                 model.addConstr(gp.quicksum(settlements[p][id(tiles[row_idx][col_idx].vertices[vo])] for p in Player) <= 1)
 
-def road_connected_settlement_constraint(tiles: list[list[Tile]], settlements: dict, roads: dict, model: Model):
+def settlement_connected_road_constraint(tiles: list[list[Tile]], settlements: dict, roads: dict, model: Model):
     # all settlements must be connected to a road also owned by that player
     for row_idx in BOARD_LAYOUT:
         for col_idx in range(BOARD_LAYOUT[row_idx]):
@@ -40,12 +40,37 @@ def road_connected_settlement_constraint(tiles: list[list[Tile]], settlements: d
                 for p in Player:
                     model.addGenConstrIndicator(settlements[p][id(tiles[row_idx][col_idx].vertices[vo])], True, gp.quicksum(roads[p][id(adj_e)] for adj_e in tiles[row_idx][col_idx].vertices[vo].adjacent_edges) >= 1)
 
+def road_connected_settlement_constraint(tiles: list[list[Tile]], settlements: dict, roads: dict, model: Model):
+    # all settlements must be connected to a road also owned by that player
+    for row_idx in BOARD_LAYOUT:
+        for col_idx in range(BOARD_LAYOUT[row_idx]):
+            for o in EDGE_ORIENTATION:
+                for p in Player:
+                    model.addGenConstrIndicator(
+                        roads[p][id(tiles[row_idx][col_idx].edges[o])], 
+                        True, 
+                        gp.quicksum(settlements[p][id(adj_v)] for adj_v in tiles[row_idx][col_idx].edges[o].adjacent_vertices) +  \
+                        gp.quicksum(roads[p][id(adj_e)] for adj_e in tiles[row_idx][col_idx].edges[o].adjacent_edges) >= 1
+                    )
+
 def settlement_distance_constraint(tiles: list[list[Tile]], settlements: dict, model: Model):
     for row_idx in BOARD_LAYOUT:
         for col_idx in range(BOARD_LAYOUT[row_idx]):
             for vo in VERTEX_ORIENTATION:
                 for player in Player:
-                    model.addGenConstrIndicator(settlements[player][id(tiles[row_idx][col_idx].vertices[vo])], True, gp.quicksum(settlements[p][id(tiles[adj_v.row][adj_v.col].vertices[adj_v.orientation])] for p in Player for adj_v in tiles[row_idx][col_idx].vertices[vo].adjacent_vertices) == 0)
+                    model.addGenConstrIndicator(
+                        settlements[player][id(tiles[row_idx][col_idx].vertices[vo])], 
+                        True, 
+                        gp.quicksum(settlements[p][id(tiles[adj_v.row][adj_v.col].vertices[adj_v.orientation])] for p in Player for adj_v in tiles[row_idx][col_idx].vertices[vo].adjacent_vertices) == 0
+                    )
+
+def maximize_resource_diversity(settlements: dict, canonical_vertices: dict, model: Model):
+    for p in Player:
+        # want to prioritize wheat, sheep, and ore specifically.
+        model.setObjective(
+            len({(vertex.tile.type) for vertex in canonical_vertices.values() if settlements[p][id(vertex)]}),
+                GRB.MAXIMIZE
+            )
 
 def dev_card_player_scoring(type: TileType):
     return {
@@ -61,10 +86,24 @@ def dev_card_player_constraint(settlements: dict, canonical_vertices: dict, mode
     # want to prioritize wheat, sheep, and ore specifically.
     model.setObjective(
             gp.quicksum(
-                dev_card_player_scoring(vertex.tile.type) * settlements[Player.RED][id(vertex)]
+                dev_card_player_scoring(vertex.tile.type) * settlements[Player.PURPLE][id(vertex)]
                 for vertex in canonical_vertices.values()
             ),
             GRB.MAXIMIZE
+        )
+    for p in Player:
+        if p == Player.PURPLE:
+            continue
+        model.addConstr(
+            gp.quicksum(
+                dev_card_player_scoring(vertex.tile.type) * settlements[Player.PURPLE][id(vertex)]
+                for vertex in canonical_vertices.values()
+            )
+            >=
+            gp.quicksum(
+                dev_card_player_scoring(vertex.tile.type) * settlements[p][id(vertex)]
+                for vertex in canonical_vertices.values()
+            )
         )
     
 def road_player_scoring(type: TileType):
@@ -80,29 +119,55 @@ def road_player_scoring(type: TileType):
 def road_building_player_constraint(roads: dict, canonical_edges: dict, model: Model):
     # want to prioritize brick and wood specifically.
     model.setObjective(
+        gp.quicksum(
+            road_player_scoring(edge.tile.type) * roads[Player.RED][id(edge)]
+            for edge in canonical_edges.values()
+        ),
+        GRB.MAXIMIZE
+    )
+    for p in Player:
+        if p == Player.RED:
+            continue
+        model.addConstr(
             gp.quicksum(
-                road_player_scoring(edge.tile.type) * roads[Player.PURPLE][id(edge)]
+                road_player_scoring(edge.tile.type) * roads[Player.RED][id(edge)]
                 for edge in canonical_edges.values()
-            ),
-            GRB.MAXIMIZE
+            )
+            >=
+            gp.quicksum(
+                road_player_scoring(edge.tile.type) * roads[p][id(edge)]
+                for edge in canonical_edges.values()
+            )
         )
     
 def port_building_player_constraint(settlements: dict, canonical_vertices: dict, model: Model):
     # must be on at least one port
     model.addConstr(
         gp.quicksum(
-            ((1 if vertex.port else 0) * settlements[Player.BLUE][id(vertex)] for vertex in canonical_vertices.values())
+            (1 if vertex.port else 0) * settlements[Player.BLUE][id(vertex)] for vertex in canonical_vertices.values()
         )
         >= 1
     )
-    # want to the resources of the ports the player owns
+    # want to maximize the resources of the ports the player owns
     model.setObjective(
+        gp.quicksum(
+            (1 if other_v.tile.type == port_v.tile.type else 0) * settlements[Player.BLUE][id(port_v)] 
+            for port_v in canonical_vertices.values()
+            for other_v in canonical_vertices.values()
+        ),
+        GRB.MAXIMIZE
+    )
+    for p in Player:
+        if p == Player.BLUE:
+            continue
+        model.addConstr(
             gp.quicksum(
-                (1 if other_v.tile.type == port_v.tile.type else 0) * settlements[Player.BLUE][id(port_v)] 
-                for port_v in canonical_vertices.values()
-                for other_v in canonical_vertices.values()
-            ),
-            GRB.MAXIMIZE
+                (1 if vertex.port else 0) * settlements[Player.BLUE][id(vertex)] for vertex in canonical_vertices.values()
+            )
+            >=
+            gp.quicksum(
+                (1 if vertex.port else 0) * settlements[p][id(vertex)] for vertex in canonical_vertices.values()
+            )
         )
 
 def generate_constraints(tiles: list[list[Tile]]):
@@ -128,8 +193,10 @@ def generate_constraints(tiles: list[list[Tile]]):
 
     two_settlements_two_roads_constraint(settlements, roads, model)
     no_overlaps_constraint(tiles, settlements, roads, model)
+    settlement_connected_road_constraint(tiles, settlements, roads, model)
     road_connected_settlement_constraint(tiles, settlements, roads, model)
     settlement_distance_constraint(tiles, settlements, model)
+    maximize_resource_diversity(settlements, canonical_vertices, model)
     dev_card_player_constraint(settlements, canonical_vertices, model)
     road_building_player_constraint(roads, canonical_edges, model)
     port_building_player_constraint(settlements, canonical_vertices, model)
