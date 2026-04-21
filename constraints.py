@@ -46,7 +46,7 @@ class Constraints:
             8: 243
         }[value]
 
-    def two_settlements_two_roads_constraint(self):
+    def settlement_road_count_constraint(self):
         """Constraint: every player places exactly road_count roads and settlement_count settlements."""
         for player in self.players:
             self.model.addConstr(self.settlements[player].sum() == self.road_settlement_count)
@@ -213,7 +213,7 @@ class Constraints:
 
     def generate_constraints(self, evaluate_only = False):
         """Generate all the constraints for the model."""
-        self.two_settlements_two_roads_constraint()
+        self.settlement_road_count_constraint()
         self.no_overlaps_constraint()
         self.settlement_connected_road_constraint()
         self.road_connected_settlement_constraint()
