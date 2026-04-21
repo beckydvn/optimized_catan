@@ -223,13 +223,13 @@ class Constraints:
         self.settlement_distance_constraint()
         self.maximize_resource_diversity()
 
-        for i in range(len(self.players)):
-            if i in [1, 4]:
-                self.road_building_player_constraint(self.players[i])
-            elif i in [2, 5]:
-                self.port_building_player_constraint(self.players[i])
-            elif i in [3, 6]:
-                self.dev_card_player_constraint(self.players[i])
+        for p in self.players:
+            if p.value in [1, 4]:
+                self.road_building_player_constraint(p)
+            elif p.value in [2, 5]:
+                self.port_building_player_constraint(p)
+            elif p.value in [3, 6]:
+                self.dev_card_player_constraint(p)
 
         # all players generally want higher numbers
         for p in self.players:
