@@ -30,18 +30,18 @@ def evaluate():
             results["num_constraints"].append(model.NumConstrs)
 
     with open('results.csv', 'w', newline='') as csvfile:
-        fieldnames = ["player_count", "road_settlement_count", "status", "runtime", "solution gap", "best bound", "num_constraints"]
+        fieldnames = ["road_settlement_count", "status", "runtime", "best bound", "num_constraints"]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
         idx = 0
         for pc in player_counts:
             for rsc in road_settlement_counts:
                 writer.writerow({
-                    "player_count": pc,
+                    # "player_count": pc,
                     "road_settlement_count": rsc,
                     "status": get_status_meaning(results["status"][idx]),
                     "runtime": round(results["runtime"][idx], 2),
-                    "solution gap": results["solution gap"][idx],
+                    # "solution gap": results["solution gap"][idx],
                     "best bound": results["best bound"][idx],
                     "num_constraints": results["num_constraints"][idx]
                 })
