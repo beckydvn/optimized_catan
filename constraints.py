@@ -67,7 +67,10 @@ class Constraints:
             for col_idx in range(BOARD_LAYOUT[row_idx]):
                 for vo in VERTEX_ORIENTATION:
                     for p in self.players:
-                        self.model.addGenConstrIndicator(self.settlements[p][id(self.tiles[row_idx][col_idx].vertices[vo])], True, gp.quicksum(self.roads[p][id(adj_e)] for adj_e in self.tiles[row_idx][col_idx].vertices[vo].adjacent_edges) >= 1)
+                        self.model.addGenConstrIndicator(
+                            self.settlements[p][id(self.tiles[row_idx][col_idx].vertices[vo])],
+                            True, 
+                            gp.quicksum(self.roads[p][id(adj_e)] for adj_e in self.tiles[row_idx][col_idx].vertices[vo].adjacent_edges) >= 1)
 
     def road_connected_settlement_constraint(self):
         """Constraint: all roads must be connected to a settlement also owned by that player."""
@@ -185,14 +188,14 @@ class Constraints:
         # must be on at least one port
         self.model.addConstr(
             gp.quicksum(
-                (100 if vertex.port else 0) * self.settlements[port_player][id(vertex)] for vertex in self.canonical_vertices.values()
+                (1 if vertex.port else 0) * self.settlements[port_player][id(vertex)] for vertex in self.canonical_vertices.values() 
             )
             >= 1
         )
         # want to maximize the resources of the ports the player owns
         self.model.setObjective(
             gp.quicksum(
-                (100 if other_v.tile.type == port_v.tile.type else 0) * self.settlements[port_player][id(port_v)] 
+                (243 if other_v.tile.type == port_v.tile.type else 0) * (1 if port_v.port else 0) * self.settlements[port_player][id(port_v)] 
                 for port_v in self.canonical_vertices.values()
                 for other_v in self.canonical_vertices.values()
             ),
@@ -203,11 +206,11 @@ class Constraints:
                 continue
             self.model.addConstr(
                 gp.quicksum(
-                    (100 if vertex.port else 0) * self.settlements[port_player][id(vertex)] for vertex in self.canonical_vertices.values()
+                    (1 if vertex.port else 0) * self.settlements[port_player][id(vertex)] for vertex in self.canonical_vertices.values()
                 )
                 >=
                 gp.quicksum(
-                    (100 if vertex.port else 0) * self.settlements[p][id(vertex)] for vertex in self.canonical_vertices.values()
+                    (1 if vertex.port else 0) * self.settlements[p][id(vertex)] for vertex in self.canonical_vertices.values()
                 )
             )
 
