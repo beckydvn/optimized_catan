@@ -10,7 +10,7 @@ e.g.
 
 `python3 -m main 3 4`:
 
-![alt text](image.png)
+![alt text](catan.png)
 
 To run the evaluation:
 ``python3 -m evaluate``
